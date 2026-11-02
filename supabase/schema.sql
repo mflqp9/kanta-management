@@ -1,0 +1,431 @@
+-- =====================================================================
+--  کانٹا کھاتہ سسٹم — Supabase Schema (لیاقت پور)
+--
+--  طریقہ: Supabase Dashboard → SQL Editor → یہ پوری فائل چلائیں۔
+--  فائل دوبارہ چلانا محفوظ ہے: کوئی ٹیبل، ڈیٹا یا پالیسی حذف نہیں ہوتی۔
+--
+--  ⚠️ چلانے سے پہلے نیچے `is_admin()` میں اپنی ایڈمن ای میل لکھیں —
+--     یہی ای میل .env.local میں NEXT_PUBLIC_ADMIN_EMAIL ہونی چاہیے۔
+-- =====================================================================
+
+
+-- ---------------------------------------------------------------------
+-- 0) ایڈمن چیک — صرف یہی ای میل ڈیٹا پڑھ / لکھ سکتی ہے
+-- ---------------------------------------------------------------------
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+as $$
+  select lower(coalesce(auth.jwt() ->> 'email', '')) = lower('admin@goldentraders.com');
+$$;
+
+
+-- ---------------------------------------------------------------------
+-- 1) پارٹیاں / کسان
+-- ---------------------------------------------------------------------
+create table if not exists public.parties (
+  id             uuid primary key default gen_random_uuid(),
+  naam           text not null,
+  walid_ka_naam  text,
+  mobile_number  text,
+  gaon           text,
+  qism           text default 'کسان',
+  created_at     timestamptz not null default now()
+);
+
+
+-- ---------------------------------------------------------------------
+-- 2) گاڑیاں
+-- ---------------------------------------------------------------------
+create table if not exists public.gaariyan (
+  id              uuid primary key default gen_random_uuid(),
+  gaari_number    text not null,
+  driver_ka_naam  text,
+  created_at      timestamptz not null default now()
+);
+
+
+-- ---------------------------------------------------------------------
+-- 3) ملیں
+-- ---------------------------------------------------------------------
+create table if not exists public.mills (
+  id             uuid primary key default gen_random_uuid(),
+  mill_ka_naam   text not null,
+  rate_per_mann  numeric not null default 0 check (rate_per_mann >= 0),
+  katauti_rule   text,
+  created_at     timestamptz not null default now()
+);
+
+
+-- ---------------------------------------------------------------------
+-- 4) وزن پرچی (مرکزی ٹیبل)
+--    jinss: 'ganna' (گنا)، 'kapaas' (کپاس)، 'gandum' (گندم)، 'chawal' (چاول)،
+--           'sarson' (سرسوں)، 'til' (تل)، 'digar' (دیگر) — lib/format.ts کے JINSS_LABEL جیسی
+--    حساب ٹرگر خود کرتا ہے (نیچے دیکھیں) تاکہ ڈیٹا ہمیشہ درست رہے:
+--      khalis_wazan_kg = kul_wazan_kg - khali_gaari_wazan_kg
+--      wazan_mann      = khalis_wazan_kg / 40
+--      kul_raqam       = wazan_mann * fee_mann_rate
+--      final_raqam     = (wazan_mann - mill_katauti_mann) * fee_mann_rate
+-- ---------------------------------------------------------------------
+create table if not exists public.wazan_parchi (
+  id                    uuid primary key default gen_random_uuid(),
+  token_number          bigserial unique,
+  tareekh               date not null default (now() at time zone 'Asia/Karachi')::date,
+  jinss                 text not null check (jinss in ('ganna', 'kapaas', 'gandum', 'chawal', 'sarson', 'til', 'digar')),
+  kisan_id              uuid not null references public.parties(id),
+  gaari_id              uuid references public.gaariyan(id),
+  mill_id               uuid references public.mills(id),
+  kul_wazan_kg          numeric not null check (kul_wazan_kg > 0),
+  khali_gaari_wazan_kg  numeric not null default 0 check (khali_gaari_wazan_kg >= 0),
+  khalis_wazan_kg       numeric not null default 0,
+  wazan_mann            numeric not null default 0,
+  fee_mann_rate         numeric not null default 0 check (fee_mann_rate >= 0),
+  kul_raqam             numeric not null default 0,
+  mill_katauti_mann     numeric not null default 0 check (mill_katauti_mann >= 0),
+  final_raqam           numeric not null default 0,
+  remarks               text,
+  created_at            timestamptz not null default now(),
+  constraint wazan_parchi_khali_kam_ho   check (khali_gaari_wazan_kg < kul_wazan_kg),
+  constraint wazan_parchi_katauti_had    check (mill_katauti_mann <= wazan_mann)
+);
+
+-- پرانا ڈیٹا بیس (صرف گنا / کپاس والا): جنس کی پابندی سات اجناس تک بڑھائیں — کوئی ریکارڈ نہیں بدلتا
+do $$
+begin
+  if exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.wazan_parchi'::regclass
+      and conname = 'wazan_parchi_jinss_check'
+      and pg_get_constraintdef(oid) not like '%digar%'
+  ) then
+    alter table public.wazan_parchi
+      drop constraint wazan_parchi_jinss_check,
+      add constraint wazan_parchi_jinss_check
+        check (jinss in ('ganna', 'kapaas', 'gandum', 'chawal', 'sarson', 'til', 'digar'));
+  end if;
+end;
+$$;
+
+
+-- ---------------------------------------------------------------------
+-- 5) ملازمین
+-- ---------------------------------------------------------------------
+create table if not exists public.mulazmeen (
+  id               uuid primary key default gen_random_uuid(),
+  naam             text not null,
+  ohda             text,
+  mahana_tankhwah  numeric not null default 0 check (mahana_tankhwah >= 0),
+  created_at       timestamptz not null default now()
+);
+
+
+-- ---------------------------------------------------------------------
+-- 6) جمع بنام کھاتہ
+--    parchi_id: اگر یہ اندراج کسی وزن پرچی سے خودکار بنا ہو
+--    (پرچی حذف ہو تو اس کا کھاتہ اندراج بھی ساتھ ختم ہو جاتا ہے)
+-- ---------------------------------------------------------------------
+create table if not exists public.khata_ledger (
+  id          uuid primary key default gen_random_uuid(),
+  tareekh     date not null default (now() at time zone 'Asia/Karachi')::date,
+  party_id    uuid not null references public.parties(id),
+  tafseel     text,
+  jama        numeric not null default 0 check (jama >= 0),
+  banam       numeric not null default 0 check (banam >= 0),
+  qism        text,
+  parchi_id   uuid unique references public.wazan_parchi(id) on delete cascade,
+  created_at  timestamptz not null default now()
+);
+
+
+-- ---------------------------------------------------------------------
+-- انڈیکس (رفتار کے لیے)
+-- ---------------------------------------------------------------------
+create index if not exists wazan_parchi_tareekh_idx  on public.wazan_parchi (tareekh);
+create index if not exists wazan_parchi_kisan_idx    on public.wazan_parchi (kisan_id);
+create index if not exists wazan_parchi_mill_idx     on public.wazan_parchi (mill_id);
+create index if not exists wazan_parchi_gaari_idx    on public.wazan_parchi (gaari_id);
+create index if not exists khata_ledger_party_idx    on public.khata_ledger (party_id, tareekh, created_at);
+create index if not exists khata_ledger_tareekh_idx  on public.khata_ledger (tareekh);
+
+
+-- ---------------------------------------------------------------------
+-- ٹرگر 1: پرچی کا حساب (محفوظ کرنے سے پہلے)
+-- ---------------------------------------------------------------------
+create or replace function public.wazan_parchi_hisaab()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.khali_gaari_wazan_kg := coalesce(new.khali_gaari_wazan_kg, 0);
+  new.fee_mann_rate        := coalesce(new.fee_mann_rate, 0);
+  new.mill_katauti_mann    := coalesce(new.mill_katauti_mann, 0);
+
+  new.khalis_wazan_kg := new.kul_wazan_kg - new.khali_gaari_wazan_kg;
+  new.wazan_mann      := round(new.khalis_wazan_kg / 40, 6);
+  new.kul_raqam       := round(new.wazan_mann * new.fee_mann_rate, 2);
+  new.final_raqam     := round((new.wazan_mann - new.mill_katauti_mann) * new.fee_mann_rate, 2);
+  return new;
+end;
+$$;
+
+create or replace trigger wazan_parchi_hisaab_trg
+  before insert or update on public.wazan_parchi
+  for each row execute function public.wazan_parchi_hisaab();
+
+
+-- ---------------------------------------------------------------------
+-- ٹرگر 2: پرچی محفوظ ہوتے ہی کسان کے کھاتے میں "جمع" اندراج
+--          (پرچی میں ترمیم ہو تو کھاتہ اندراج بھی اپ ڈیٹ ہو جاتا ہے)
+-- ---------------------------------------------------------------------
+create or replace function public.wazan_parchi_khata_sync()
+returns trigger
+language plpgsql
+as $$
+begin
+  insert into public.khata_ledger (tareekh, party_id, tafseel, jama, banam, qism, parchi_id)
+  values (
+    new.tareekh,
+    new.kisan_id,
+    format(
+      'وزن پرچی نمبر %s — %s، %s من',
+      new.token_number,
+      case new.jinss
+        when 'ganna'  then 'گنا'
+        when 'kapaas' then 'کپاس'
+        when 'gandum' then 'گندم'
+        when 'chawal' then 'چاول'
+        when 'sarson' then 'سرسوں'
+        when 'til'    then 'تل'
+        when 'digar'  then 'دیگر'
+        else new.jinss
+      end,
+      trim(trailing '.' from trim(trailing '0' from round(new.wazan_mann, 2)::text))
+    ),
+    new.final_raqam,
+    0,
+    'وزن پرچی',
+    new.id
+  )
+  on conflict (parchi_id) do update
+    set tareekh  = excluded.tareekh,
+        party_id = excluded.party_id,
+        tafseel  = excluded.tafseel,
+        jama     = excluded.jama;
+  return null;
+end;
+$$;
+
+create or replace trigger wazan_parchi_khata_trg
+  after insert or update on public.wazan_parchi
+  for each row execute function public.wazan_parchi_khata_sync();
+
+
+-- ---------------------------------------------------------------------
+-- ویو: ہر پارٹی کا کل جمع / بنام / بقایا
+-- ---------------------------------------------------------------------
+create or replace view public.party_baqaya
+with (security_invoker = true)
+as
+select
+  p.id,
+  p.naam,
+  p.walid_ka_naam,
+  p.gaon,
+  p.mobile_number,
+  p.qism,
+  coalesce(sum(k.jama), 0)               as kul_jama,
+  coalesce(sum(k.banam), 0)              as kul_banam,
+  coalesce(sum(k.jama - k.banam), 0)     as baqaya,
+  count(k.id)                            as indraj_count,
+  max(k.tareekh)                         as aakhri_tareekh
+from public.parties p
+left join public.khata_ledger k on k.party_id = p.id
+group by p.id;
+
+
+-- ---------------------------------------------------------------------
+-- RPC: ڈیش بورڈ کے اعداد و شمار (ایک دن کے)
+-- ---------------------------------------------------------------------
+create or replace function public.dashboard_stats(p_tareekh date)
+returns table (
+  ganna_kg       numeric,
+  ganna_mann     numeric,
+  kapaas_kg      numeric,
+  kapaas_mann    numeric,
+  parchi_count   bigint,
+  aaj_ki_aamdan  numeric,
+  kul_baqaya     numeric
+)
+language sql
+stable
+as $$
+  select
+    coalesce(sum(w.khalis_wazan_kg) filter (where w.jinss = 'ganna'), 0),
+    coalesce(sum(w.wazan_mann)      filter (where w.jinss = 'ganna'), 0),
+    coalesce(sum(w.khalis_wazan_kg) filter (where w.jinss = 'kapaas'), 0),
+    coalesce(sum(w.wazan_mann)      filter (where w.jinss = 'kapaas'), 0),
+    count(w.id),
+    coalesce(sum(w.final_raqam), 0),
+    (select coalesce(sum(k.jama - k.banam), 0) from public.khata_ledger k)
+  from public.wazan_parchi w
+  where w.tareekh = p_tareekh;
+$$;
+-- (ganna_* / kapaas_* کالم پرانی ترتیب کے لیے باقی ہیں — جنس وار وزن نیچے والے RPC سے)
+
+
+-- ---------------------------------------------------------------------
+-- RPC: ڈیش بورڈ — ایک دن کا جنس وار وزن (صرف وہ اجناس جن کی پرچی بنی)
+-- ---------------------------------------------------------------------
+create or replace function public.dashboard_jinss_wazan(p_tareekh date)
+returns table (
+  jinss            text,
+  parchi_count     bigint,
+  khalis_wazan_kg  numeric,
+  wazan_mann       numeric,
+  final_raqam      numeric
+)
+language sql
+stable
+as $$
+  select
+    w.jinss,
+    count(*),
+    coalesce(sum(w.khalis_wazan_kg), 0),
+    coalesce(sum(w.wazan_mann), 0),
+    coalesce(sum(w.final_raqam), 0)
+  from public.wazan_parchi w
+  where w.tareekh = p_tareekh
+  group by w.jinss;
+$$;
+
+
+-- ---------------------------------------------------------------------
+-- RPC: مل وار رپورٹ
+-- ---------------------------------------------------------------------
+create or replace function public.report_mill_wise(p_from date, p_to date, p_jinss text default null)
+returns table (
+  mill_id          uuid,
+  mill_ka_naam     text,
+  parchi_count     bigint,
+  khalis_wazan_kg  numeric,
+  wazan_mann       numeric,
+  katauti_mann     numeric,
+  kul_raqam        numeric,
+  final_raqam      numeric
+)
+language sql
+stable
+as $$
+  select
+    w.mill_id,
+    coalesce(m.mill_ka_naam, 'بغیر مل'),
+    count(*),
+    coalesce(sum(w.khalis_wazan_kg), 0),
+    coalesce(sum(w.wazan_mann), 0),
+    coalesce(sum(w.mill_katauti_mann), 0),
+    coalesce(sum(w.kul_raqam), 0),
+    coalesce(sum(w.final_raqam), 0)
+  from public.wazan_parchi w
+  left join public.mills m on m.id = w.mill_id
+  where w.tareekh between p_from and p_to
+    and (p_jinss is null or w.jinss = p_jinss)
+  group by w.mill_id, m.mill_ka_naam
+  order by sum(w.wazan_mann) desc;
+$$;
+
+
+-- ---------------------------------------------------------------------
+-- RPC: بقایا رپورٹ — سابقہ بقایا + مدت کا جمع / بنام = موجودہ بقایا
+-- ---------------------------------------------------------------------
+create or replace function public.report_baqaya(p_from date, p_to date)
+returns table (
+  party_id       uuid,
+  naam           text,
+  walid_ka_naam  text,
+  gaon           text,
+  mobile_number  text,
+  sabiqa_baqaya  numeric,
+  jama           numeric,
+  banam          numeric,
+  baqaya         numeric
+)
+language sql
+stable
+as $$
+  select
+    p.id,
+    p.naam,
+    p.walid_ka_naam,
+    p.gaon,
+    p.mobile_number,
+    coalesce(sum(k.jama - k.banam) filter (where k.tareekh < p_from), 0),
+    coalesce(sum(k.jama)  filter (where k.tareekh between p_from and p_to), 0),
+    coalesce(sum(k.banam) filter (where k.tareekh between p_from and p_to), 0),
+    coalesce(sum(k.jama - k.banam) filter (where k.tareekh <= p_to), 0)
+  from public.parties p
+  join public.khata_ledger k on k.party_id = p.id
+  group by p.id
+  having coalesce(sum(k.jama - k.banam) filter (where k.tareekh <= p_to), 0) <> 0
+      or count(*) filter (where k.tareekh between p_from and p_to) > 0
+  order by 9 desc;
+$$;
+
+
+-- ---------------------------------------------------------------------
+-- Row Level Security — صرف ایڈمن (لاگ ان شدہ ایک ای میل)
+-- ---------------------------------------------------------------------
+alter table public.parties      enable row level security;
+alter table public.gaariyan     enable row level security;
+alter table public.mills        enable row level security;
+alter table public.wazan_parchi enable row level security;
+alter table public.mulazmeen    enable row level security;
+alter table public.khata_ledger enable row level security;
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['parties', 'gaariyan', 'mills', 'wazan_parchi', 'mulazmeen', 'khata_ledger']
+  loop
+    if not exists (
+      select 1 from pg_policies
+      where schemaname = 'public' and tablename = t and policyname = 'admin_full_access'
+    ) then
+      execute format(
+        'create policy admin_full_access on public.%I for all to authenticated
+           using ((select public.is_admin())) with check ((select public.is_admin()))',
+        t
+      );
+    end if;
+  end loop;
+end;
+$$;
+
+
+-- ---------------------------------------------------------------------
+-- اجازتیں: صرف لاگ ان شدہ صارف؛ گمنام (anon) کو کوئی رسائی نہیں
+-- ---------------------------------------------------------------------
+grant usage on schema public to authenticated;
+
+grant select, insert, update, delete
+  on public.parties, public.gaariyan, public.mills,
+     public.wazan_parchi, public.mulazmeen, public.khata_ledger
+  to authenticated;
+grant select on public.party_baqaya to authenticated;
+grant usage, select on sequence public.wazan_parchi_token_number_seq to authenticated;
+
+revoke all
+  on public.parties, public.gaariyan, public.mills,
+     public.wazan_parchi, public.mulazmeen, public.khata_ledger, public.party_baqaya
+  from anon;
+
+revoke execute on function public.dashboard_stats(date)               from public, anon;
+revoke execute on function public.dashboard_jinss_wazan(date)         from public, anon;
+revoke execute on function public.report_mill_wise(date, date, text)  from public, anon;
+revoke execute on function public.report_baqaya(date, date)           from public, anon;
+grant  execute on function public.dashboard_stats(date)               to authenticated;
+grant  execute on function public.dashboard_jinss_wazan(date)         to authenticated;
+grant  execute on function public.report_mill_wise(date, date, text)  to authenticated;
+grant  execute on function public.report_baqaya(date, date)           to authenticated;
+grant  execute on function public.is_admin()                          to authenticated;
