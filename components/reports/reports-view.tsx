@@ -151,7 +151,16 @@ function MillReport({ range, jinss }: { range: DateRange; jinss: Jinss | "all" }
 
 type KatautiRow = Pick<
   WazanParchi,
-  "id" | "token_number" | "tareekh" | "jinss" | "wazan_mann" | "mill_katauti_mann" | "fee_mann_rate" | "kul_raqam" | "final_raqam"
+  | "id"
+  | "token_number"
+  | "tareekh"
+  | "jinss"
+  | "wazan_mann"
+  | "mill_katauti_mann"
+  | "mill_katauti_kg"
+  | "fee_mann_rate"
+  | "kul_raqam"
+  | "final_raqam"
 > & {
   kisan: Pick<Party, "naam" | "walid_ka_naam"> | null
   mill: Pick<Mill, "mill_ka_naam"> | null
@@ -163,7 +172,7 @@ function KatautiReport({ range, jinss }: { range: DateRange; jinss: Jinss | "all
       let q = getSupabase()
         .from("wazan_parchi")
         .select(
-          "id, token_number, tareekh, jinss, wazan_mann, mill_katauti_mann, fee_mann_rate, kul_raqam, final_raqam, kisan:parties(naam, walid_ka_naam), mill:mills(mill_ka_naam)",
+          "id, token_number, tareekh, jinss, wazan_mann, mill_katauti_mann, mill_katauti_kg, fee_mann_rate, kul_raqam, final_raqam, kisan:parties(naam, walid_ka_naam), mill:mills(mill_ka_naam)",
         )
         .gte("tareekh", from)
         .lte("tareekh", to)
@@ -180,6 +189,7 @@ function KatautiReport({ range, jinss }: { range: DateRange; jinss: Jinss | "all
 
   const totalMann = data.reduce((s, r) => s + Number(r.wazan_mann), 0)
   const totalKatauti = data.reduce((s, r) => s + Number(r.mill_katauti_mann), 0)
+  const totalKatautiKg = data.reduce((s, r) => s + Number(r.mill_katauti_kg), 0)
   const totalRaqam = data.reduce((s, r) => s + (Number(r.kul_raqam) - Number(r.final_raqam)), 0)
 
   return (
@@ -192,6 +202,7 @@ function KatautiReport({ range, jinss }: { range: DateRange; jinss: Jinss | "all
             <TableHead>کسان</TableHead>
             <TableHead>مل</TableHead>
             <TableHead className="text-end">وزن (من)</TableHead>
+            <TableHead className="text-end">کٹوتی (کلو)</TableHead>
             <TableHead className="text-end">کٹوتی (من)</TableHead>
             <TableHead className="text-end">فیصد</TableHead>
             <TableHead className="text-end">کٹوتی رقم</TableHead>
@@ -209,6 +220,7 @@ function KatautiReport({ range, jinss }: { range: DateRange; jinss: Jinss | "all
               </TableCell>
               <TableCell>{r.mill?.mill_ka_naam ?? "—"}</TableCell>
               <NumCell value={r.wazan_mann} format="mann" />
+              <NumCell value={r.mill_katauti_kg} format="kg" strong />
               <NumCell value={r.mill_katauti_mann} format="mann" strong />
               <NumCell value={r.wazan_mann > 0 ? (r.mill_katauti_mann / r.wazan_mann) * 100 : 0} format="number" suffix="%" />
               <NumCell value={Number(r.kul_raqam) - Number(r.final_raqam)} format="raqam" />
@@ -221,6 +233,7 @@ function KatautiReport({ range, jinss }: { range: DateRange; jinss: Jinss | "all
               میزان (<Num value={data.length} /> پرچیاں)
             </TableCell>
             <NumCell value={totalMann} format="mann" />
+            <NumCell value={totalKatautiKg} format="kg" />
             <NumCell value={totalKatauti} format="mann" />
             <NumCell value={totalMann > 0 ? (totalKatauti / totalMann) * 100 : 0} format="number" suffix="%" />
             <NumCell value={totalRaqam} format="raqam" />

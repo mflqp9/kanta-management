@@ -103,6 +103,9 @@ export function ParchiList({
               <TableRow key={row.id}>
                 <TableCell>
                   <TokenBadge token={row.token_number} />
+                  {row.serial_number && (
+                    <Num className="mt-0.5 block max-w-28 truncate text-xs text-muted-foreground">{row.serial_number}</Num>
+                  )}
                 </TableCell>
                 <TableCell>
                   <Link href={`/khata/${row.kisan_id}`} className="font-semibold hover:text-primary">

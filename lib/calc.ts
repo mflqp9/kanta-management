@@ -1,5 +1,7 @@
 // وزن پرچی کا حساب — supabase/schema.sql کے ٹرگر `wazan_parchi_hisaab` جیسا ہی
 
+import type { KatautiUnit } from "@/lib/database.types"
+
 export const KG_PER_MANN = 40
 
 export type HisaabInput = {
@@ -34,6 +36,20 @@ export function hisaab({ kulWazanKg, khaliWazanKg, rate, katautiMann }: HisaabIn
     katautiRaqam: round(kulRaqam - finalRaqam),
     finalRaqam,
   }
+}
+
+/**
+ * مل کٹوتی کو من میں بدلتا ہے — پرچی کا سارا حساب (اور ڈیٹا بیس کا mill_katauti_mann) من میں ہے۔
+ * کلو ÷ 40؛ ڈیٹا بیس کا خودکار کالم mill_katauti_kg واپس × 40 کرتا ہے۔
+ */
+export function katautiKoMann(value: number, unit: KatautiUnit) {
+  return unit === "kg" ? round(value / KG_PER_MANN, 6) : value
+}
+
+/** مل کے فیصد اصول سے خودکار کٹوتی، منتخب اکائی میں (کلو 2 اعشاریہ، من 3 اعشاریہ تک) */
+export function khudkarKatauti(khalisWazanKg: number, feesad: number, unit: KatautiUnit) {
+  const kg = (khalisWazanKg * feesad) / 100
+  return unit === "kg" ? round(kg, 2) : round(kg / KG_PER_MANN, 3)
 }
 
 /** کلو کو "من + کلو" میں توڑتا ہے: 8,120 کلو → 203 من 0 کلو */

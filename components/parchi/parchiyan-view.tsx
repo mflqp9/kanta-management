@@ -46,7 +46,15 @@ export function ParchiyanView() {
       (data ?? []).filter((r) => {
         if (jinss !== "all" && r.jinss !== jinss) return false
         if (!q) return true
-        return [r.token_number, r.kisan?.naam, r.kisan?.walid_ka_naam, r.kisan?.gaon, r.gaari?.gaari_number, r.mill?.mill_ka_naam]
+        return [
+          r.token_number,
+          r.serial_number,
+          r.kisan?.naam,
+          r.kisan?.walid_ka_naam,
+          r.kisan?.gaon,
+          r.gaari?.gaari_number,
+          r.mill?.mill_ka_naam,
+        ]
           .join(" ")
           .toLowerCase()
           .includes(q)
@@ -96,7 +104,7 @@ export function ParchiyanView() {
 
       <div className="my-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
         <InputGroup className="h-11 bg-card">
-          <InputGroupInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ٹوکن نمبر، کسان، گاڑی یا مل تلاش کریں…" />
+          <InputGroupInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ٹوکن نمبر، سیریل، کسان، گاڑی یا مل تلاش کریں…" />
           <InputGroupAddon>
             <Search />
           </InputGroupAddon>

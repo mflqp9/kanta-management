@@ -16,6 +16,7 @@ export function urduError(error: unknown): string {
     case "23505":
       return "یہ اندراج پہلے سے موجود ہے۔"
     case "23514":
+      if (/serial/i.test(message)) return "سیریل میں صرف انگریزی حروف اور ہندسے لکھیں۔"
       return "درج کی گئی قیمتیں درست نہیں — وزن اور کٹوتی دوبارہ چیک کریں۔"
     case "23502":
       return "ضروری خانے خالی ہیں۔"

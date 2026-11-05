@@ -5,6 +5,9 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 
 export type Jinss = "ganna" | "kapaas" | "gandum" | "chawal" | "sarson" | "til" | "digar"
 
+/** مل کٹوتی کس اکائی میں لکھی گئی */
+export type KatautiUnit = "kg" | "mann"
+
 export type Database = {
   public: {
     Tables: {
@@ -82,6 +85,10 @@ export type Database = {
           mill_katauti_mann: number
           final_raqam: number
           remarks: string | null
+          serial_number: string | null
+          mill_katauti_unit: KatautiUnit
+          /** خودکار کالم: mill_katauti_mann × 40 */
+          mill_katauti_kg: number
           created_at: string
         }
         Insert: {
@@ -101,6 +108,9 @@ export type Database = {
           mill_katauti_mann?: number
           final_raqam?: number
           remarks?: string | null
+          serial_number?: string | null
+          mill_katauti_unit?: KatautiUnit
+          mill_katauti_kg?: never
           created_at?: string
         }
         Update: Partial<Database["public"]["Tables"]["wazan_parchi"]["Insert"]>

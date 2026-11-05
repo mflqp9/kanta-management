@@ -32,10 +32,28 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useToday } from "@/hooks/use-today"
-import { hisaab, katautiFeesad, mannAurKilo, round, toNumber } from "@/lib/calc"
-import { PARCHI_SELECT, type Gaari, type Jinss, type ParchiWithRelations, type Party, type TablesInsert } from "@/lib/database.types"
+import { hisaab, katautiFeesad, katautiKoMann, khudkarKatauti, mannAurKilo, toNumber } from "@/lib/calc"
+import {
+  PARCHI_SELECT,
+  type Gaari,
+  type Jinss,
+  type KatautiUnit,
+  type ParchiWithRelations,
+  type Party,
+  type TablesInsert,
+} from "@/lib/database.types"
 import { urduError } from "@/lib/errors"
-import { JINSS_LABEL, JINSS_LIST, formatMann, formatTareekh, partyKaNaam } from "@/lib/format"
+import {
+  JINSS_LABEL,
+  JINSS_LIST,
+  KATAUTI_UNIT_LABEL,
+  KATAUTI_UNIT_LIST,
+  cleanSerial,
+  formatKg,
+  formatMann,
+  formatTareekh,
+  partyKaNaam,
+} from "@/lib/format"
 import { refreshAll, useGaariyan, useMills, useParties } from "@/lib/queries"
 import { getSupabase } from "@/lib/supabaseClient"
 import { cn } from "@/lib/utils"
@@ -49,9 +67,12 @@ type Draft = {
   kulKg: string
   khaliKg: string
   rate: string
+  /** کٹوتی، `katautiUnit` والی اکائی میں */
   katauti: string
+  katautiUnit: KatautiUnit
   /** منشی نے کٹوتی خود لکھی ہے (خودکار فیصد والی نہیں) */
   katautiManual: boolean
+  serial: string
   remarks: string
 }
 
@@ -65,9 +86,21 @@ const EMPTY_DRAFT: Draft = {
   khaliKg: "",
   rate: "",
   katauti: "",
+  katautiUnit: "kg",
   katautiManual: false,
+  serial: "",
   remarks: "",
 }
+
+/** اگلی گاڑی کے لیے فارم: جنس، تاریخ، مل، ریٹ اور کٹوتی کی اکائی وہی رہیں */
+const nextDraft = (d: Draft): Draft => ({
+  ...EMPTY_DRAFT,
+  jinss: d.jinss,
+  tareekh: d.tareekh,
+  millId: d.millId,
+  rate: d.rate,
+  katautiUnit: d.katautiUnit,
+})
 
 const NO_MILL = "__none__"
 
@@ -108,10 +141,18 @@ export function WazanEntryForm() {
   const khaliKg = toNumber(draft.khaliKg)
   const rate = toNumber(draft.rate)
   const khalisForAuto = Math.max(kulKg - khaliKg, 0)
-  const autoKatauti = feesad !== null ? round(((khalisForAuto / 40) * feesad) / 100, 3) : null
-  const katautiMann = draft.katautiManual || autoKatauti === null ? toNumber(draft.katauti) : autoKatauti
+  // خودکار اور لکھی ہوئی کٹوتی منتخب اکائی میں؛ حساب کے لیے من میں بدلی جاتی ہے
+  const autoKatauti = feesad !== null ? khudkarKatauti(khalisForAuto, feesad, draft.katautiUnit) : null
+  const katautiValue = draft.katautiManual || autoKatauti === null ? toNumber(draft.katauti) : autoKatauti
+  const katautiMann = katautiKoMann(katautiValue, draft.katautiUnit)
   const h = hisaab({ kulWazanKg: kulKg, khaliWazanKg: khaliKg, rate, katautiMann })
   const split = mannAurKilo(Math.max(h.khalisWazanKg, 0))
+  const katautiSub =
+    katautiMann > 0
+      ? draft.katautiUnit === "kg"
+        ? `${formatKg(katautiValue)} کلو (${formatMann(katautiMann)} من) × ریٹ`
+        : `${formatMann(katautiMann)} من × ریٹ`
+      : undefined
 
   const errors = useMemo<Errors>(() => {
     const e: Errors = {}
@@ -123,9 +164,10 @@ export function WazanEntryForm() {
     else if (kulKg > 0 && khaliKg >= kulKg) e.khaliKg = "خالی گاڑی کا وزن کل وزن سے کم ہونا چاہیے"
     if (rate < 0) e.rate = "درست ریٹ لکھیں"
     if (katautiMann < 0) e.katauti = "درست کٹوتی لکھیں"
-    else if (katautiMann > 0 && katautiMann > h.wazanMann) e.katauti = "کٹوتی کل من سے زیادہ نہیں ہو سکتی"
+    else if (katautiMann > 0 && katautiMann > h.wazanMann)
+      e.katauti = draft.katautiUnit === "kg" ? "کٹوتی خالص وزن سے زیادہ نہیں ہو سکتی" : "کٹوتی کل من سے زیادہ نہیں ہو سکتی"
     return e
-  }, [draft.kisanId, draft.tareekh, today, kulKg, khaliKg, rate, katautiMann, h.wazanMann])
+  }, [draft.kisanId, draft.tareekh, draft.katautiUnit, today, kulKg, khaliKg, rate, katautiMann, h.wazanMann])
 
   const shownErrors: Errors = submitted ? errors : {}
   const hasData = Boolean(draft.kisanId || draft.kulKg || draft.khaliKg)
@@ -211,7 +253,9 @@ export function WazanEntryForm() {
         fee_mann_rate: rate,
         kul_raqam: h.kulRaqam,
         mill_katauti_mann: katautiMann,
+        mill_katauti_unit: draft.katautiUnit,
         final_raqam: h.finalRaqam,
+        serial_number: cleanSerial(draft.serial) || null,
         remarks: draft.remarks.trim() || null,
       }
       const { data, error } = await getSupabase().from("wazan_parchi").insert(payload).select(PARCHI_SELECT).single()
@@ -226,14 +270,7 @@ export function WazanEntryForm() {
       toast.success(`پرچی نمبر ${saved.token_number} محفوظ ہو گئی — کھاتے میں جمع ہو گئی`)
       if (andPrint) printSlip(<ParchiSlip parchi={saved} />)
 
-      // اگلی گاڑی کے لیے فارم تیار: جنس، تاریخ، مل اور ریٹ وہی رہیں
-      setDraft((d) => ({
-        ...EMPTY_DRAFT,
-        jinss: d.jinss,
-        tareekh: d.tareekh,
-        millId: d.millId,
-        rate: d.rate,
-      }))
+      setDraft(nextDraft)
       setSubmitted(false)
       refreshAll()
       requestAnimationFrame(() => kisanRef.current?.focus())
@@ -256,7 +293,7 @@ export function WazanEntryForm() {
   }, [save])
 
   function reset() {
-    setDraft((d) => ({ ...EMPTY_DRAFT, jinss: d.jinss, tareekh: d.tareekh, millId: d.millId, rate: d.rate }))
+    setDraft(nextDraft)
     setSubmitted(false)
   }
 
@@ -419,8 +456,9 @@ export function WazanEntryForm() {
           </FormSection>
 
           {/* ------------------------------------------------ 3: ریٹ اور کٹوتی */}
-          <FormSection title="ریٹ اور کٹوتی" icon={Coins} step={4}>
-            <div className="grid gap-4 sm:grid-cols-2">
+          <FormSection title="ریٹ اور کٹوتی" icon={Coins} step={4} className="@container">
+            {/* کالم تنگ ہو (ٹیبلٹ / حساب والے کالم کے ساتھ) تو ایک ایک خانہ، کھلا ہو تو دو دو */}
+            <div className="grid gap-4 @md:grid-cols-2">
               <Field
                 label={`ریٹ فی من (${JINSS_LABEL[draft.jinss]})`}
                 htmlFor="rate"
@@ -449,13 +487,27 @@ export function WazanEntryForm() {
               >
                 <BigNumberInput
                   id="katauti"
-                  unit="من"
+                  unit={<KatautiUnitSelect value={draft.katautiUnit} onChange={(u) => set("katautiUnit", u)} />}
                   value={draft.katautiManual || autoKatauti === null ? draft.katauti : autoKatauti ? String(autoKatauti) : ""}
                   onChange={(v) => setDraft((d) => ({ ...d, katauti: v, katautiManual: true }))}
                   invalid={Boolean(shownErrors.katauti)}
                 />
               </Field>
-              <Field label="ریمارکس" htmlFor="remarks" className="sm:col-span-2">
+              <Field label="سیریل" htmlFor="serial" hint="صرف انگریزی حروف اور ہندسے">
+                <Input
+                  id="serial"
+                  dir="ltr"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  maxLength={30}
+                  className="h-11 text-end font-num"
+                  value={draft.serial}
+                  onChange={(e) => set("serial", cleanSerial(e.target.value))}
+                  placeholder="سیریل نمبر (اختیاری)"
+                />
+              </Field>
+              <Field label="ریمارکس" htmlFor="remarks">
                 <Textarea
                   id="remarks"
                   rows={2}
@@ -494,7 +546,7 @@ export function WazanEntryForm() {
               <CalcRow label="کل رقم" sub="من × ریٹ">
                 <Raqam value={h.kulRaqam} />
               </CalcRow>
-              <CalcRow label="مل کٹوتی" sub={katautiMann > 0 ? `${formatMann(katautiMann)} من × ریٹ` : undefined} negative={katautiMann > 0}>
+              <CalcRow label="مل کٹوتی" sub={katautiSub} negative={katautiMann > 0}>
                 {katautiMann > 0 && "− "}
                 <Raqam value={h.katautiRaqam} />
               </CalcRow>
@@ -564,6 +616,27 @@ export function WazanEntryForm() {
 
 // ---------------------------------------------------------------- چھوٹے حصے
 
+/** کٹوتی کی اکائی — خانے کے اندر چھوٹی فہرست (ڈیفالٹ کلوگرام) */
+function KatautiUnitSelect({ value, onChange }: { value: KatautiUnit; onChange: (unit: KatautiUnit) => void }) {
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as KatautiUnit)}>
+      <SelectTrigger
+        aria-label="کٹوتی کی اکائی"
+        className="h-10! cursor-pointer gap-1 border-0 bg-secondary ps-2.5 pe-1.5 text-sm font-medium text-secondary-foreground shadow-none hover:bg-accent dark:bg-secondary dark:hover:bg-accent"
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {KATAUTI_UNIT_LIST.map((u) => (
+          <SelectItem key={u} value={u}>
+            {KATAUTI_UNIT_LABEL[u]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
 function BigNumberInput({
   id,
   unit,
@@ -572,7 +645,7 @@ function BigNumberInput({
   invalid,
 }: {
   id: string
-  unit: string
+  unit: React.ReactNode
   value: string
   onChange: (v: string) => void
   invalid?: boolean

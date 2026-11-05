@@ -1,4 +1,4 @@
-import type { Jinss } from "@/lib/database.types"
+import type { Jinss, KatautiUnit, WazanParchi } from "@/lib/database.types"
 
 const TIME_ZONE = "Asia/Karachi"
 
@@ -121,6 +121,29 @@ export const JINSS_LABEL: Record<Jinss, string> = {
 }
 
 export const JINSS_LIST = Object.keys(JINSS_LABEL) as Jinss[]
+
+/** مل کٹوتی کی اکائیاں — فہرست میں پہلی (کلوگرام) ڈیفالٹ ہے */
+export const KATAUTI_UNIT_LABEL: Record<KatautiUnit, string> = {
+  kg: "کلوگرام",
+  mann: "من",
+}
+
+export const KATAUTI_UNIT_LIST = Object.keys(KATAUTI_UNIT_LABEL) as KatautiUnit[]
+
+/** پرچی کی کٹوتی اسی اکائی میں جس میں لکھی گئی تھی: { n: "120", unit: "کلو" } */
+export function katautiKiTafseel(parchi: Pick<WazanParchi, "mill_katauti_unit" | "mill_katauti_kg" | "mill_katauti_mann">) {
+  return parchi.mill_katauti_unit === "kg"
+    ? { n: formatKg(parchi.mill_katauti_kg), unit: "کلو" }
+    : { n: formatMann(parchi.mill_katauti_mann), unit: "من" }
+}
+
+/** سیریل: صرف انگریزی حروف اور ہندسے — اردو / عربی ہندسے انگریزی میں بدل جاتے ہیں، باقی سب ہٹ جاتا ہے */
+export function cleanSerial(value: string) {
+  return value
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[^A-Za-z0-9]/g, "")
+}
 
 /** پارٹی کا پورا نام: "محمد اکرم ولد غلام رسول" */
 export function partyKaNaam(party: { naam: string; walid_ka_naam?: string | null } | null | undefined) {

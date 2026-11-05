@@ -67,6 +67,12 @@ create table if not exists public.mills (
 --      wazan_mann      = khalis_wazan_kg / 40
 --      kul_raqam       = wazan_mann * fee_mann_rate
 --      final_raqam     = (wazan_mann - mill_katauti_mann) * fee_mann_rate
+--    serial_number: پرچی کا سیریل — صرف انگریزی حروف اور ہندسے (A-Z، a-z، 0-9)، اختیاری
+--    کٹوتی: حساب ہمیشہ mill_katauti_mann (من) سے ہوتا ہے۔ منشی کٹوتی کلو یا من میں لکھ سکتا ہے:
+--      mill_katauti_unit = 'kg' (کلوگرام) یا 'mann' (من) — کس اکائی میں لکھی گئی
+--      ایپ کلو والی کٹوتی کو ÷ 40 کر کے mill_katauti_mann میں بھیجتی ہے (lib/calc.ts → katautiKoMann)
+--      mill_katauti_kg = mill_katauti_mann × 40 — خودکار کالم، صرف پڑھنے کے لیے
+--      ڈیفالٹ 'mann' اس لیے کہ پرانی پرچیاں من میں تھیں؛ نئی پرچی پر ایپ اکائی خود بھیجتی ہے (ڈیفالٹ کلو)
 -- ---------------------------------------------------------------------
 create table if not exists public.wazan_parchi (
   id                    uuid primary key default gen_random_uuid(),
@@ -85,10 +91,22 @@ create table if not exists public.wazan_parchi (
   mill_katauti_mann     numeric not null default 0 check (mill_katauti_mann >= 0),
   final_raqam           numeric not null default 0,
   remarks               text,
+  serial_number         text constraint wazan_parchi_serial_check check (serial_number ~ '^[A-Za-z0-9]+$'),
+  mill_katauti_unit     text not null default 'mann' constraint wazan_parchi_katauti_unit_check check (mill_katauti_unit in ('kg', 'mann')),
+  mill_katauti_kg       numeric generated always as (mill_katauti_mann * 40) stored,
   created_at            timestamptz not null default now(),
   constraint wazan_parchi_khali_kam_ho   check (khali_gaari_wazan_kg < kul_wazan_kg),
   constraint wazan_parchi_katauti_had    check (mill_katauti_mann <= wazan_mann)
 );
+
+-- پرانا ڈیٹا بیس: سیریل اور کٹوتی کی اکائی والے کالم شامل کریں — پہلے سے موجود ہوں تو کچھ نہیں ہوتا
+-- (پرانی پرچیوں کی اکائی خود 'mann' لگتی ہے اور mill_katauti_kg خود بن جاتا ہے؛ کوئی ریکارڈ حذف نہیں ہوتا)
+alter table public.wazan_parchi
+  add column if not exists serial_number text
+    constraint wazan_parchi_serial_check check (serial_number ~ '^[A-Za-z0-9]+$'),
+  add column if not exists mill_katauti_unit text not null default 'mann'
+    constraint wazan_parchi_katauti_unit_check check (mill_katauti_unit in ('kg', 'mann')),
+  add column if not exists mill_katauti_kg numeric generated always as (mill_katauti_mann * 40) stored;
 
 -- پرانا ڈیٹا بیس (صرف گنا / کپاس والا): جنس کی پابندی سات اجناس تک بڑھائیں — کوئی ریکارڈ نہیں بدلتا
 do $$

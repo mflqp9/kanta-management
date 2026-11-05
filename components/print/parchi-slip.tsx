@@ -2,7 +2,16 @@ import { Num } from "@/components/num"
 import { BUSINESS, DEVELOPER } from "@/lib/config"
 import { mannAurKilo } from "@/lib/calc"
 import type { ParchiWithRelations } from "@/lib/database.types"
-import { JINSS_LABEL, formatKg, formatMann, formatRaqam, formatTareekh, formatWaqt, partyKaNaam } from "@/lib/format"
+import {
+  JINSS_LABEL,
+  formatKg,
+  formatMann,
+  formatRaqam,
+  formatTareekh,
+  formatWaqt,
+  katautiKiTafseel,
+  partyKaNaam,
+} from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 /**
@@ -12,6 +21,7 @@ import { cn } from "@/lib/utils"
 export function ParchiSlip({ parchi, copy }: { parchi: ParchiWithRelations; copy?: string }) {
   const { mann, kilo } = mannAurKilo(parchi.khalis_wazan_kg)
   const katautiRaqam = parchi.kul_raqam - parchi.final_raqam
+  const katauti = katautiKiTafseel(parchi)
 
   return (
     <div dir="rtl" lang="ur" className="mx-auto w-[72mm] bg-white px-[1mm] py-[3mm] font-sans text-[10.5pt] leading-[1.75] text-black">
@@ -49,6 +59,7 @@ export function ParchiSlip({ parchi, copy }: { parchi: ParchiWithRelations; copy
       {parchi.gaari && <Row label="گاڑی نمبر" value={<Num>{parchi.gaari.gaari_number}</Num>} />}
       {parchi.gaari?.driver_ka_naam && <Row label="ڈرائیور" value={parchi.gaari.driver_ka_naam} />}
       {parchi.mill && <Row label="مل" value={parchi.mill.mill_ka_naam} />}
+      {parchi.serial_number && <Row label="سیریل" value={<Num>{parchi.serial_number}</Num>} />}
 
       <Divider />
 
@@ -69,7 +80,7 @@ export function ParchiSlip({ parchi, copy }: { parchi: ParchiWithRelations; copy
           label="مل کٹوتی"
           value={
             <span>
-              <Unit n={formatMann(parchi.mill_katauti_mann)} unit="من" /> ={" "}
+              <Unit {...katauti} /> ={" "}
               <Unit n={formatRaqam(katautiRaqam)} unit="روپے" />
             </span>
           }
