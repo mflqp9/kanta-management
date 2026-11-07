@@ -58,7 +58,7 @@ export function KhataIndexView() {
 
       <div className="mb-4 flex flex-col gap-2 sm:flex-row">
         <InputGroup className="h-11 bg-card">
-          <InputGroupInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="پارٹی کا نام، گاؤں یا موبائل تلاش کریں…" />
+          <InputGroupInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="پارٹی کا نام، موضع یا موبائل تلاش کریں…" />
           <InputGroupAddon>
             <Search />
           </InputGroupAddon>

@@ -8,6 +8,7 @@ import useSWR from "swr"
 import { ConfirmDelete } from "@/components/confirm-delete"
 import { EmptyState, ErrorState } from "@/components/empty-state"
 import { KhataEntryDialog } from "@/components/khata/khata-entry-dialog"
+import { ZamanatCard } from "@/components/khata/zamanat-card"
 import { Baqaya, Num, Raqam } from "@/components/num"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -183,6 +184,14 @@ export function KhataDetailView({ params }: { params: Promise<{ partyId: string 
             <Baqaya value={baqaya} />
           </Tile>
         </div>
+
+        {p && (
+          <ZamanatCard
+            key={p.id}
+            party={p}
+            onSaved={(zamanat) => party.mutate({ ...p, zamanat }, { revalidate: true })}
+          />
+        )}
       </div>
 
       {error ? (

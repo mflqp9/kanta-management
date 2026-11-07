@@ -20,8 +20,15 @@ import { cn } from "@/lib/utils"
 type Side = "banam" | "jama"
 
 const QISMEN: Record<Side, string[]> = {
-  banam: ["نقد ادائیگی", "بینک ادائیگی", "ایڈوانس", "کھاد / بیج / دوائی", "دیگر"],
-  jama: ["نقد وصولی", "بینک وصولی", "مال کی وصولی", "دیگر"],
+  banam: ["نقد ادائیگی", "بینک ادائیگی", "چیک ادائیگی", "ایڈوانس", "کھاد / بیج / دوائی", "دیگر"],
+  jama: ["نقد وصولی", "بینک وصولی", "چیک وصولی", "مال کی وصولی", "دیگر"],
+}
+
+/** قسم کے حساب سے تفصیل کی مثال — چیک ہو تو چیک نمبر اور بینک یاد دلائیں */
+function tafseelPlaceholder(qism: string) {
+  if (qism.startsWith("چیک")) return "مثلاً: چیک نمبر 123456، حبیب بینک"
+  if (qism.startsWith("بینک")) return "مثلاً: بینک ٹرانسفر، حبیب بینک"
+  return "مثلاً: نقد ادائیگی بذریعہ منشی"
 }
 
 /** کھاتے میں دستی اندراج (ادائیگی / وصولی) — نیا یا ترمیم */
@@ -185,7 +192,7 @@ function EntryForm({
           </Select>
         </Field>
         <Field label="تفصیل" htmlFor="k-tafseel" className="sm:col-span-2">
-          <Textarea id="k-tafseel" rows={2} value={tafseel} onChange={(e) => setTafseel(e.target.value)} placeholder="مثلاً: نقد ادائیگی بذریعہ منشی" />
+          <Textarea id="k-tafseel" rows={2} value={tafseel} onChange={(e) => setTafseel(e.target.value)} placeholder={tafseelPlaceholder(qism)} />
         </Field>
       </div>
 

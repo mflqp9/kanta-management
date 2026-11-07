@@ -54,7 +54,7 @@ export function ParchiSlip({ parchi, copy }: { parchi: ParchiWithRelations; copy
 
       <Row label="جنس" value={JINSS_LABEL[parchi.jinss]} strong />
       <Row label="کسان" value={partyKaNaam(parchi.kisan)} />
-      {parchi.kisan?.gaon && <Row label="گاؤں" value={parchi.kisan.gaon} />}
+      {parchi.kisan?.gaon && <Row label="موضع" value={parchi.kisan.gaon} />}
       {parchi.kisan?.mobile_number && <Row label="موبائل" value={<Num>{parchi.kisan.mobile_number}</Num>} />}
       {parchi.gaari && <Row label="گاڑی نمبر" value={<Num>{parchi.gaari.gaari_number}</Num>} />}
       {parchi.gaari?.driver_ka_naam && <Row label="ڈرائیور" value={parchi.gaari.driver_ka_naam} />}

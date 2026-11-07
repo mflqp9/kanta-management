@@ -23,6 +23,8 @@ $$;
 
 -- ---------------------------------------------------------------------
 -- 1) پارٹیاں / کسان
+--    gaon: ایپ میں «موضع» کے نام سے
+--    zamanat: ضمانتی کاغذات — ادائیگی / ایڈوانس کے بدلے لیے گئے چیک، اسٹامپ پیپر وغیرہ کی تفصیل
 -- ---------------------------------------------------------------------
 create table if not exists public.parties (
   id             uuid primary key default gen_random_uuid(),
@@ -31,8 +33,12 @@ create table if not exists public.parties (
   mobile_number  text,
   gaon           text,
   qism           text default 'کسان',
+  zamanat        text,
   created_at     timestamptz not null default now()
 );
+
+-- پرانا ڈیٹا بیس: ضمانتی کاغذات کا کالم شامل کریں — پہلے سے ہو تو کچھ نہیں ہوتا
+alter table public.parties add column if not exists zamanat text;
 
 
 -- ---------------------------------------------------------------------

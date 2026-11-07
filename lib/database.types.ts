@@ -19,6 +19,8 @@ export type Database = {
           mobile_number: string | null
           gaon: string | null
           qism: string | null
+          /** ضمانتی کاغذات کی تفصیل (چیک، اسٹامپ پیپر وغیرہ) */
+          zamanat: string | null
           created_at: string
         }
         Insert: {
@@ -28,6 +30,7 @@ export type Database = {
           mobile_number?: string | null
           gaon?: string | null
           qism?: string | null
+          zamanat?: string | null
           created_at?: string
         }
         Update: Partial<Database["public"]["Tables"]["parties"]["Insert"]>

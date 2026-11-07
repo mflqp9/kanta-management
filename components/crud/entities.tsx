@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { BookOpenText, Factory, IdCard, MapPin, Phone, Truck, Users } from "lucide-react"
+import { BookOpenText, Factory, IdCard, MapPin, Phone, ShieldCheck, Truck, Users } from "lucide-react"
 import { CrudPage } from "@/components/crud/crud-page"
 import type { EntityConfig, FieldDef } from "@/components/crud/types"
 import { Num, Raqam } from "@/components/num"
@@ -13,14 +13,29 @@ import { partyKaNaam } from "@/lib/format"
 const dash = <span className="text-muted-foreground">—</span>
 
 // ---------------------------------------------------------------- پارٹیاں
-export const PARTY_QISMEN = ["کسان", "بیوپاری", "آڑھتی", "ڈرائیور", "دیگر"]
+export const PARTY_QISMEN = [
+  "کسان",
+  "زمیندار",
+  "بیوپاری",
+  "آڑھتی",
+  "ڈرائیور",
+  "سیلز اینڈ ریکوری آفیسر",
+  "برانچ منیجر",
+  "ایم ڈی",
+  "دیگر",
+]
+
+export const ZAMANAT_LABEL = "ضمانتی کاغذات"
+export const ZAMANAT_PLACEHOLDER = "مثلاً: چیک نمبر 123456 (حبیب بینک)، 500 روپے کا اسٹامپ پیپر"
+export const ZAMANAT_HINT = "رقم یا ایڈوانس دینے پر ضمانت کے طور پر لیے گئے چیک، اسٹامپ پیپر وغیرہ کی تفصیل (اختیاری)"
 
 export const PARTY_FIELDS: FieldDef[] = [
   { name: "naam", label: "نام", required: true, placeholder: "مثلاً: محمد اکرم" },
   { name: "walid_ka_naam", label: "والد کا نام", placeholder: "مثلاً: غلام رسول" },
   { name: "mobile_number", label: "موبائل نمبر", type: "tel", placeholder: "03001234567" },
-  { name: "gaon", label: "گاؤں", placeholder: "مثلاً: چک نمبر 12" },
+  { name: "gaon", label: "موضع", placeholder: "مثلاً: چک نمبر 12" },
   { name: "qism", label: "قسم", type: "select", options: PARTY_QISMEN, defaultValue: "کسان", full: true },
+  { name: "zamanat", label: ZAMANAT_LABEL, type: "textarea", placeholder: ZAMANAT_PLACEHOLDER, hint: ZAMANAT_HINT },
 ]
 
 const partiesConfig: EntityConfig<Party> = {
@@ -31,7 +46,7 @@ const partiesConfig: EntityConfig<Party> = {
   singular: "پارٹی",
   muannas: true,
   fields: PARTY_FIELDS,
-  searchText: (r) => [r.naam, r.walid_ka_naam, r.gaon, r.mobile_number, r.qism].join(" "),
+  searchText: (r) => [r.naam, r.walid_ka_naam, r.gaon, r.mobile_number, r.qism, r.zamanat].join(" "),
   columns: [
     {
       label: "نام",
@@ -42,9 +57,22 @@ const partiesConfig: EntityConfig<Party> = {
         </div>
       ),
     },
-    { label: "گاؤں", cell: (r) => r.gaon || dash },
+    { label: "موضع", cell: (r) => r.gaon || dash },
     { label: "موبائل نمبر", cell: (r) => (r.mobile_number ? <Num>{r.mobile_number}</Num> : dash) },
     { label: "قسم", cell: (r) => (r.qism ? <Badge variant="secondary">{r.qism}</Badge> : dash) },
+    {
+      label: ZAMANAT_LABEL,
+      className: "hidden lg:table-cell",
+      cell: (r) =>
+        r.zamanat ? (
+          <span className="flex max-w-56 items-center gap-1.5" title={r.zamanat}>
+            <ShieldCheck className="size-4 shrink-0 text-primary" />
+            <span className="truncate">{r.zamanat}</span>
+          </span>
+        ) : (
+          dash
+        ),
+    },
   ],
   cardTitle: (r) => r.naam,
   cardSubtitle: (r) => (r.walid_ka_naam ? `ولد ${r.walid_ka_naam}` : r.qism),
@@ -62,6 +90,12 @@ const partiesConfig: EntityConfig<Party> = {
           <Phone className="size-3.5" />
           <Num>{r.mobile_number}</Num>
         </a>
+      )}
+      {r.zamanat && (
+        <span className="flex items-center gap-1 text-primary">
+          <ShieldCheck className="size-3.5" />
+          ضمانت درج
+        </span>
       )}
     </>
   ),

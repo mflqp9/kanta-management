@@ -375,7 +375,7 @@ export function WazanEntryForm() {
                     value={draft.kisanId}
                     onChange={(v) => set("kisanId", v)}
                     placeholder="کسان تلاش کریں…"
-                    searchPlaceholder="نام، ولدیت، گاؤں یا موبائل…"
+                    searchPlaceholder="نام، ولدیت، موضع یا موبائل…"
                     emptyText="یہ کسان درج نہیں"
                     createLabel="نیا کسان شامل کریں"
                     onCreate={(search) => setQuickAdd({ kind: "kisan", search })}

@@ -262,7 +262,7 @@ function BaqayaReport({ range }: { range: DateRange }) {
         <TableHeader>
           <TableRow className="bg-muted/60 hover:bg-muted/60">
             <TableHead>پارٹی</TableHead>
-            <TableHead className="hidden sm:table-cell print:table-cell">گاؤں</TableHead>
+            <TableHead className="hidden sm:table-cell print:table-cell">موضع</TableHead>
             <TableHead className="text-end">سابقہ بقایا</TableHead>
             <TableHead className="text-end">جمع</TableHead>
             <TableHead className="text-end">بنام</TableHead>

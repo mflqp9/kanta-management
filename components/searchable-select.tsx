@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 export type SelectOption = {
   value: string
   label: string
-  /** دوسری سطر — مثلاً ولدیت، گاؤں */
+  /** دوسری سطر — مثلاً ولدیت، موضع */
   hint?: string
   /** تلاش کے اضافی الفاظ (موبائل نمبر وغیرہ) */
   keywords?: string[]
