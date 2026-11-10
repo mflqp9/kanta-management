@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { BookOpenText, ChevronLeft, MapPin, Search, Users } from "lucide-react"
+import { ArrowDownUp, BookOpenText, ChevronLeft, MapPin, Search, Users } from "lucide-react"
 import { useDeferredValue, useMemo, useState } from "react"
 import useSWR from "swr"
 import { EmptyState, ErrorState } from "@/components/empty-state"
@@ -9,6 +9,7 @@ import { Baqaya, Num, Raqam } from "@/components/num"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { PartyBaqaya } from "@/lib/database.types"
 import { urduError } from "@/lib/errors"
@@ -18,14 +19,22 @@ import { cn } from "@/lib/utils"
 
 type Filter = "baqaya" | "all"
 
+/** فہرست کی ترتیب — پہلی (کھاتہ نمبر) ڈیفالٹ */
+type Tarteeb = "khata" | "baqaya"
+const TARTEEB_LABEL: Record<Tarteeb, string> = {
+  khata: "کھاتہ نمبر",
+  baqaya: "زیادہ بقایا پہلے",
+}
+
 export function KhataIndexView() {
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState<Filter>("baqaya")
+  const [tarteeb, setTarteeb] = useState<Tarteeb>("khata")
   const q = useDeferredValue(search.trim().toLowerCase())
 
   const { data, error, mutate } = useSWR("party_baqaya", () =>
     fetchAll<PartyBaqaya>((from, to) =>
-      getSupabase().from("party_baqaya").select("*").order("naam").range(from, to),
+      getSupabase().from("party_baqaya").select("*").order("khata_number").range(from, to),
     ),
   )
 
@@ -50,8 +59,15 @@ export function KhataIndexView() {
           isNumber(r) ||
           [`#${r.khata_number}`, r.naam, nisbatKaJumla(r), r.gaon, r.mobile_number, r.mobile_number_2].join(" ").toLowerCase().includes(q),
       )
-      .sort((a, b) => Number(isNumber(b)) - Number(isNumber(a)) || Math.abs(Number(b.baqaya)) - Math.abs(Number(a.baqaya)))
-  }, [data, filter, q])
+      // نمبر سے تلاش ہو تو وہی کھاتہ سب سے اوپر؛ پھر منتخب ترتیب:
+      // کھاتہ نمبر (1، 2، 3 …) یا زیادہ بقایا پہلے (جمع ہو یا بنام، بڑی رقم اوپر — برابر ہو تو کھاتہ نمبر سے)
+      .sort(
+        (a, b) =>
+          Number(isNumber(b)) - Number(isNumber(a)) ||
+          (tarteeb === "baqaya" ? Math.abs(Number(b.baqaya)) - Math.abs(Number(a.baqaya)) : 0) ||
+          Number(a.khata_number) - Number(b.khata_number),
+      )
+  }, [data, filter, q, tarteeb])
 
   return (
     <>
@@ -71,6 +87,22 @@ export function KhataIndexView() {
             <Search />
           </InputGroupAddon>
         </InputGroup>
+        <Select value={tarteeb} onValueChange={(v) => setTarteeb(v as Tarteeb)}>
+          <SelectTrigger aria-label="ترتیب" className="h-11! w-full shrink-0 bg-card sm:w-56">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <ArrowDownUp className="text-muted-foreground" />
+              <span className="text-muted-foreground">ترتیب:</span>
+              <SelectValue />
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(TARTEEB_LABEL) as Tarteeb[]).map((t) => (
+              <SelectItem key={t} value={t}>
+                {TARTEEB_LABEL[t]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="flex h-11 shrink-0 items-center gap-1 rounded-lg bg-muted p-1">
           {(
             [
@@ -83,7 +115,7 @@ export function KhataIndexView() {
               type="button"
               onClick={() => setFilter(key)}
               className={cn(
-                "h-9 flex-1 rounded-md px-3 text-sm transition-colors",
+                "h-9 flex-1 rounded-md px-3 text-sm whitespace-nowrap transition-colors",
                 filter === key ? "bg-background font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground",
               )}
             >

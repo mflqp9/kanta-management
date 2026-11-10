@@ -16,8 +16,15 @@ export const DEVELOPER = {
   naam: "KodeVision",
   website: "www.kodevision.com",
   url: "https://kodevision.com",
-  phone: "+92 300 8684 287",
+  phone: "03008684287",
+  facebook: "facebook.com/kodevision",
+  facebookUrl: "https://www.facebook.com/kodevision",
 }
+
+/** "03008684287" → بین الاقوامی "923008684287" (کال اور واٹس ایپ لنک کے لیے) */
+const DEVELOPER_PHONE_INTL = DEVELOPER.phone.replace(/\D/g, "").replace(/^0/, "92")
+export const DEVELOPER_PHONE_HREF = `tel:+${DEVELOPER_PHONE_INTL}`
+export const DEVELOPER_WHATSAPP_URL = `https://wa.me/${DEVELOPER_PHONE_INTL}`
 
 /** لاگ ان شدہ ایڈمن کا نام — ہیڈر اور موبائل مینو میں ای میل کے ساتھ */
 export const ADMIN_NAAM = process.env.NEXT_PUBLIC_ADMIN_NAME || "ایڈمن"

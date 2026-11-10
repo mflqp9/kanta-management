@@ -1,8 +1,22 @@
 import Link from "next/link"
-import { BookOpenText, ChartColumnBig, ExternalLink, LogIn, MapPin, Phone, Printer, Scale, Sprout, UserRound } from "lucide-react"
+import {
+  BookOpenText,
+  Building2,
+  ChartColumnBig,
+  ExternalLink,
+  Globe,
+  LogIn,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Printer,
+  Scale,
+  Sprout,
+  UserRound,
+} from "lucide-react"
 import { PublicHeader } from "@/components/layout/public-header"
 import { Button } from "@/components/ui/button"
-import { BUSINESS, BUSINESS_PHONE_HREF, DEVELOPER } from "@/lib/config"
+import { BUSINESS, BUSINESS_PHONE_HREF, DEVELOPER, DEVELOPER_PHONE_HREF, DEVELOPER_WHATSAPP_URL } from "@/lib/config"
 
 const SAHULIYAT = [
   { icon: Scale, title: "درست وزن", text: "ہر جنس کی گاڑیوں کا وزن — خالص وزن اور من کا خودکار حساب" },
@@ -147,7 +161,103 @@ export default function LandingPage() {
             </a>
           </span>
         </div>
+
+        {/* سافٹ ویئر بنانے والی کمپنی کا تعارف اور رابطہ */}
+        <section aria-labelledby="developer-title" className="border-t bg-muted/40">
+          <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] md:items-center">
+            <div>
+              <p className="text-sm text-muted-foreground">یہ سافٹ ویئر تیار کیا ہے</p>
+              <h2 id="developer-title" className="text-2xl font-bold text-primary">
+                <a
+                  href={DEVELOPER.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  dir="ltr"
+                  lang="en"
+                  className="font-num underline-offset-4 hover:underline"
+                >
+                  {DEVELOPER.naam}
+                </a>
+              </h2>
+              <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+                کانٹا کھاتہ سسٹم <span lang="en">{DEVELOPER.naam}</span> نے تیار کیا ہے، اور سافٹ ویئر کی دیکھ بھال اور مدد بھی وہی کرتی ہے۔
+                اپنے کاروبار کے لیے ایسا سافٹ ویئر بنوانا ہو تو رابطہ کریں۔
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button asChild>
+                  <a href={DEVELOPER_WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle />
+                    واٹس ایپ پر رابطہ کریں
+                  </a>
+                </Button>
+                <Button asChild variant="outline">
+                  <a href={DEVELOPER.url} target="_blank" rel="noopener noreferrer">
+                    <Globe />
+                    ویب سائٹ دیکھیں
+                  </a>
+                </Button>
+              </div>
+            </div>
+
+            <ul className="grid gap-2 text-sm" aria-label="رابطہ">
+              <DeveloperRabta icon={<Building2 className="size-4" />} label="کمپنی">
+                <span dir="ltr" lang="en" className="font-num font-semibold">
+                  {DEVELOPER.naam}
+                </span>
+              </DeveloperRabta>
+              <DeveloperRabta icon={<Globe className="size-4" />} label="ویب سائٹ">
+                <a href={DEVELOPER.url} target="_blank" rel="noopener noreferrer" dir="ltr" className="font-num text-primary underline-offset-4 hover:underline">
+                  {DEVELOPER.website}
+                </a>
+              </DeveloperRabta>
+              <DeveloperRabta icon={<Phone className="size-4" />} label="موبائل">
+                <a href={DEVELOPER_PHONE_HREF} dir="ltr" className="font-num text-primary underline-offset-4 hover:underline">
+                  {DEVELOPER.phone}
+                </a>
+              </DeveloperRabta>
+              <DeveloperRabta icon={<MessageCircle className="size-4" />} label="واٹس ایپ">
+                <a href={DEVELOPER_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" dir="ltr" className="font-num text-primary underline-offset-4 hover:underline">
+                  {DEVELOPER.phone}
+                </a>
+              </DeveloperRabta>
+              <DeveloperRabta icon={<FacebookIcon />} label="فیس بک">
+                <a href={DEVELOPER.facebookUrl} target="_blank" rel="noopener noreferrer" dir="ltr" className="font-num text-primary underline-offset-4 hover:underline">
+                  {DEVELOPER.facebook}
+                </a>
+              </DeveloperRabta>
+            </ul>
+          </div>
+
+          <div className="border-t">
+            <p className="mx-auto max-w-6xl px-4 py-3 text-center text-xs text-muted-foreground sm:px-6">
+              سافٹ ویئر کے جملہ حقوق محفوظ ہیں ©{" "}
+              <span dir="ltr" lang="en" className="font-num">
+                {DEVELOPER.naam}
+              </span>
+            </p>
+          </div>
+        </section>
       </footer>
     </div>
+  )
+}
+
+/** رابطے کی ایک سطر: نشان، عنوان اور قیمت */
+function DeveloperRabta({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+  return (
+    <li className="flex min-h-10 items-center gap-3 rounded-xl bg-card px-3 py-1.5 ring-1 ring-foreground/8">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">{icon}</span>
+      <span className="w-16 shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate">{children}</span>
+    </li>
+  )
+}
+
+/** فیس بک کا نشان (lucide میں برانڈ کے نشان نہیں) */
+function FacebookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className="size-4 fill-current">
+      <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.413c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
+    </svg>
   )
 }
