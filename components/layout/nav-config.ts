@@ -2,6 +2,7 @@ import {
   BookOpenText,
   ChartColumnBig,
   Factory,
+  FileSpreadsheet,
   GraduationCap,
   IdCard,
   LayoutDashboard,
@@ -28,6 +29,7 @@ export const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { href: "/wazan-entry", label: "وزن اندراج", short: "وزن", icon: Scale },
       { href: "/parchiyan", label: "تمام پرچیاں", short: "پرچیاں", icon: ReceiptText },
       { href: "/khata", label: "جمع بنام کھاتہ", short: "کھاتہ", icon: BookOpenText },
+      { href: "/mill-tarseel", label: "مل ترسیل رجسٹر", short: "مل ترسیل", icon: FileSpreadsheet },
     ],
   },
   {

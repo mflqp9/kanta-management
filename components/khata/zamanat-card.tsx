@@ -43,7 +43,7 @@ export function ZamanatCard({ party, onSaved }: { party: Party; onSaved: (zamana
       toast.error(urduError(error))
       return
     }
-    toast.success(next ? "ضمانتی کاغذات محفوظ ہو گئے" : "ضمانتی کاغذات کا خانہ خالی کر دیا گیا")
+    toast.success(next ? "ضمانتی کاغذات / ریفرنس کی تفصیل محفوظ ہو گئی" : "ضمانتی کاغذات / ریفرنس کا خانہ خالی کر دیا گیا")
     setEditing(false)
     onSaved(next)
     mutate("parties")
@@ -109,7 +109,7 @@ export function ZamanatCard({ party, onSaved }: { party: Party; onSaved: (zamana
       ) : zamanat ? (
         <p className="mt-2 text-sm whitespace-pre-line">{zamanat}</p>
       ) : (
-        <p className="mt-2 text-sm text-muted-foreground">اس پارٹی کے کوئی ضمانتی کاغذات درج نہیں۔</p>
+        <p className="mt-2 text-sm text-muted-foreground">اس پارٹی کے کوئی ضمانتی کاغذات یا ریفرنس درج نہیں۔</p>
       )}
     </section>
   )

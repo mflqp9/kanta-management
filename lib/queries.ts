@@ -6,7 +6,7 @@ import type { Gaari, Mill, Mulazim, Party, TableName } from "@/lib/database.type
 
 type Order = { column: string; ascending?: boolean }
 
-export const TABLE_ORDER: Record<Exclude<TableName, "wazan_parchi" | "khata_ledger">, Order> = {
+export const TABLE_ORDER: Record<Exclude<TableName, "wazan_parchi" | "khata_ledger" | "mill_tarseel">, Order> = {
   parties: { column: "naam", ascending: true },
   gaariyan: { column: "gaari_number", ascending: true },
   mills: { column: "mill_ka_naam", ascending: true },

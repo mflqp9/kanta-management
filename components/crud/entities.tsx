@@ -8,7 +8,8 @@ import { Num, Raqam } from "@/components/num"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { Gaari, Mill, Mulazim, Party } from "@/lib/database.types"
-import { partyKaNaam } from "@/lib/format"
+import { NISBAT_LABEL, NISBAT_LIST, formatTareekh, nisbatKaJumla, partyKaNaam, todayPK } from "@/lib/format"
+import { cn } from "@/lib/utils"
 
 const dash = <span className="text-muted-foreground">—</span>
 
@@ -22,19 +23,35 @@ export const PARTY_QISMEN = [
   "سیلز اینڈ ریکوری آفیسر",
   "برانچ منیجر",
   "ایم ڈی",
+  "گارڈ / چوکیدار",
+  "ملازم",
   "دیگر",
 ]
 
-export const ZAMANAT_LABEL = "ضمانتی کاغذات"
-export const ZAMANAT_PLACEHOLDER = "مثلاً: چیک نمبر 123456 (حبیب بینک)، 500 روپے کا اسٹامپ پیپر"
-export const ZAMANAT_HINT = "رقم یا ایڈوانس دینے پر ضمانت کے طور پر لیے گئے چیک، اسٹامپ پیپر وغیرہ کی تفصیل (اختیاری)"
+export const ZAMANAT_LABEL = "ضمانتی کاغذات / ریفرنس"
+export const ZAMANAT_PLACEHOLDER = "مثلاً: چیک نمبر 123456 (حبیب بینک)، 500 روپے کا اسٹامپ پیپر، یا ریفرنس کا نام"
+export const ZAMANAT_HINT = "رقم یا ایڈوانس دینے پر ضمانت کے طور پر لیے گئے چیک، اسٹامپ پیپر وغیرہ یا ریفرنس کی تفصیل (اختیاری)"
 
 export const PARTY_FIELDS: FieldDef[] = [
-  { name: "naam", label: "نام", required: true, placeholder: "مثلاً: محمد اکرم" },
-  { name: "walid_ka_naam", label: "والد کا نام", placeholder: "مثلاً: غلام رسول" },
+  { name: "naam", label: "نام", required: true, placeholder: "مثلاً: محمد اکرم یا فرم کا نام" },
+  {
+    name: "walid_ka_naam",
+    label: "والد کا نام",
+    placeholder: "مثلاً: غلام رسول",
+    // نام کسی فرم / کاروبار کا ہو تو والد کی جگہ ریفرینس (حوالہ دینے والے) کا نام — parties.nisbat میں محفوظ
+    selector: {
+      name: "nisbat",
+      ariaLabel: "والد یا ریفرینس",
+      options: NISBAT_LIST.map((n) => ({ value: n, label: NISBAT_LABEL[n] })),
+      defaultValue: "walid",
+      labels: { walid: "والد کا نام", reference: "ریفرینس کا نام" },
+      placeholders: { walid: "مثلاً: غلام رسول", reference: "مثلاً: محمد اسلم (جس کے حوالے سے آئے)" },
+    },
+  },
   { name: "mobile_number", label: "موبائل نمبر", type: "tel", placeholder: "03001234567" },
+  { name: "mobile_number_2", label: "دوسرا موبائل نمبر", type: "tel", placeholder: "03001234567", hint: "اختیاری" },
   { name: "gaon", label: "موضع", placeholder: "مثلاً: چک نمبر 12" },
-  { name: "qism", label: "قسم", type: "select", options: PARTY_QISMEN, defaultValue: "کسان", full: true },
+  { name: "qism", label: "قسم", type: "select", options: PARTY_QISMEN, defaultValue: "کسان" },
   { name: "zamanat", label: ZAMANAT_LABEL, type: "textarea", placeholder: ZAMANAT_PLACEHOLDER, hint: ZAMANAT_HINT },
 ]
 
@@ -46,19 +63,32 @@ const partiesConfig: EntityConfig<Party> = {
   singular: "پارٹی",
   muannas: true,
   fields: PARTY_FIELDS,
-  searchText: (r) => [r.naam, r.walid_ka_naam, r.gaon, r.mobile_number, r.qism, r.zamanat].join(" "),
+  searchText: (r) =>
+    [`#${r.khata_number}`, r.naam, nisbatKaJumla(r), r.gaon, r.mobile_number, r.mobile_number_2, r.qism, r.zamanat].join(" "),
+  rowNumber: { label: "کھاتہ نمبر", cell: (r) => <Num className="font-semibold text-primary">{r.khata_number}</Num> },
   columns: [
     {
       label: "نام",
       cell: (r) => (
         <div>
           <div className="font-semibold">{r.naam}</div>
-          {r.walid_ka_naam && <div className="text-xs text-muted-foreground">ولد {r.walid_ka_naam}</div>}
+          {nisbatKaJumla(r) && <div className="text-xs text-muted-foreground">{nisbatKaJumla(r)}</div>}
         </div>
       ),
     },
     { label: "موضع", cell: (r) => r.gaon || dash },
-    { label: "موبائل نمبر", cell: (r) => (r.mobile_number ? <Num>{r.mobile_number}</Num> : dash) },
+    {
+      label: "موبائل نمبر",
+      cell: (r) =>
+        r.mobile_number || r.mobile_number_2 ? (
+          <div className="grid">
+            {r.mobile_number && <Num>{r.mobile_number}</Num>}
+            {r.mobile_number_2 && <Num className="text-muted-foreground">{r.mobile_number_2}</Num>}
+          </div>
+        ) : (
+          dash
+        ),
+    },
     { label: "قسم", cell: (r) => (r.qism ? <Badge variant="secondary">{r.qism}</Badge> : dash) },
     {
       label: ZAMANAT_LABEL,
@@ -75,9 +105,12 @@ const partiesConfig: EntityConfig<Party> = {
     },
   ],
   cardTitle: (r) => r.naam,
-  cardSubtitle: (r) => (r.walid_ka_naam ? `ولد ${r.walid_ka_naam}` : r.qism),
+  cardSubtitle: (r) => nisbatKaJumla(r) ?? r.qism,
   cardMeta: (r) => (
     <>
+      <Badge>
+        کھاتہ نمبر <Num>{r.khata_number}</Num>
+      </Badge>
       {r.qism && <Badge variant="secondary">{r.qism}</Badge>}
       {r.gaon && (
         <span className="flex items-center gap-1 text-muted-foreground">
@@ -85,12 +118,12 @@ const partiesConfig: EntityConfig<Party> = {
           {r.gaon}
         </span>
       )}
-      {r.mobile_number && (
-        <a href={`tel:${r.mobile_number}`} className="flex items-center gap-1 text-primary">
+      {[r.mobile_number, r.mobile_number_2].filter(Boolean).map((m, i) => (
+        <a key={i} href={`tel:${m}`} className="flex items-center gap-1 text-primary">
           <Phone className="size-3.5" />
-          <Num>{r.mobile_number}</Num>
+          <Num>{m}</Num>
         </a>
-      )}
+      ))}
       {r.zamanat && (
         <span className="flex items-center gap-1 text-primary">
           <ShieldCheck className="size-3.5" />
@@ -195,27 +228,73 @@ const mulazmeenConfig: EntityConfig<Mulazim> = {
       suggestions: ["منشی", "کانٹا آپریٹر", "چوکیدار", "مزدور", "ڈرائیور", "اکاؤنٹنٹ"],
     },
     { name: "mahana_tankhwah", label: "ماہانہ تنخواہ", type: "number", unit: "روپے", placeholder: "0", full: true },
+    { name: "joining_tareekh", label: "شمولیت کی تاریخ", type: "date", hint: "جس دن ملازمت شروع کی (اختیاری)" },
+    {
+      name: "leaving_tareekh",
+      label: "ملازمت چھوڑنے کی تاریخ",
+      type: "date",
+      hint: "خالی چھوڑیں اگر ملازم ابھی کام کر رہا ہے",
+      notBefore: { field: "joining_tareekh", message: "چھوڑنے کی تاریخ شمولیت کی تاریخ سے پہلے نہیں ہو سکتی" },
+    },
   ],
-  searchText: (r) => [r.naam, r.ohda].join(" "),
+  searchText: (r) => [r.naam, r.ohda, chhorChuka(r) ? "سابق ملازم" : "موجودہ ملازم"].join(" "),
   columns: [
-    { label: "نام", cell: (r) => <span className="font-semibold">{r.naam}</span> },
+    {
+      label: "نام",
+      cell: (r) => <span className={cn("font-semibold", chhorChuka(r) && "text-muted-foreground")}>{r.naam}</span>,
+    },
     { label: "عہدہ", cell: (r) => (r.ohda ? <Badge variant="secondary">{r.ohda}</Badge> : dash) },
     { label: "ماہانہ تنخواہ", cell: (r) => <Raqam value={r.mahana_tankhwah} /> },
+    { label: "شمولیت کی تاریخ", cell: (r) => (r.joining_tareekh ? formatTareekh(r.joining_tareekh) : dash) },
+    { label: "ملازمت چھوڑنے کی تاریخ", cell: (r) => <MulazmatHalat r={r} /> },
   ],
   cardTitle: (r) => r.naam,
   cardSubtitle: (r) => r.ohda || "عہدہ درج نہیں",
   cardMeta: (r) => (
-    <span>
-      تنخواہ: <Raqam value={r.mahana_tankhwah} className="font-semibold" />
-    </span>
+    <>
+      <span>
+        تنخواہ: <Raqam value={r.mahana_tankhwah} className="font-semibold" />
+      </span>
+      {r.joining_tareekh && <span className="text-muted-foreground">شمولیت: {formatTareekh(r.joining_tareekh)}</span>}
+      <MulazmatHalat r={r} />
+    </>
   ),
   deleteDescription: (r) => <>«{r.naam}» کا ریکارڈ حذف ہو جائے گا۔</>,
-  footer: (rows) => (
-    <div className="flex items-center justify-between font-semibold">
-      <span>کل ماہانہ تنخواہیں</span>
-      <Raqam value={rows.reduce((s, r) => s + Number(r.mahana_tankhwah), 0)} />
-    </div>
-  ),
+  // تنخواہوں کا مجموعہ صرف موجودہ ملازمین کا — جو ملازمت چھوڑ چکے وہ شامل نہیں
+  footer: (rows) => {
+    const maujooda = rows.filter((r) => !chhorChuka(r))
+    return (
+      <div className="flex items-center justify-between gap-3 font-semibold">
+        <span>
+          موجودہ ملازمین (<Num value={maujooda.length} />) کی کل ماہانہ تنخواہیں
+        </span>
+        <Raqam value={maujooda.reduce((s, r) => s + Number(r.mahana_tankhwah), 0)} />
+      </div>
+    )
+  },
+}
+
+/** ملازم ملازمت چھوڑ چکا ہے؟ (چھوڑنے کی تاریخ آج یا اس سے پہلے کی ہو) */
+function chhorChuka(r: Mulazim) {
+  return Boolean(r.leaving_tareekh && r.leaving_tareekh <= todayPK())
+}
+
+/** «موجودہ» یا «سابق ملازم · 10 نومبر، 2026» (آگے کی تاریخ ہو تو «… کو چھوڑے گا») */
+function MulazmatHalat({ r }: { r: Mulazim }) {
+  if (!r.leaving_tareekh) return <Badge variant="secondary">موجودہ</Badge>
+  if (!chhorChuka(r))
+    return (
+      <span className="flex flex-wrap items-center gap-1.5">
+        <Badge variant="secondary">موجودہ</Badge>
+        <span className="text-xs text-muted-foreground">{formatTareekh(r.leaving_tareekh)} کو چھوڑے گا</span>
+      </span>
+    )
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      <Badge variant="outline">سابق ملازم</Badge>
+      <span className="text-muted-foreground">{formatTareekh(r.leaving_tareekh)}</span>
+    </span>
+  )
 }
 
 export function PartiesView() {

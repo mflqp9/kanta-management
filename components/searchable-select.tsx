@@ -27,6 +27,8 @@ export function SearchableSelect({
   emptyText = "کچھ نہیں ملا",
   onCreate,
   createLabel = "نیا شامل کریں",
+  createNeedsSearch,
+  freeText,
   loading,
   invalid,
   className,
@@ -43,6 +45,10 @@ export function SearchableSelect({
   /** "نیا شامل کریں" پر کلک — تلاش کا متن ساتھ آتا ہے */
   onCreate?: (search: string) => void
   createLabel?: string
+  /** «نیا شامل کریں» صرف تب دکھے جب تلاش میں کچھ لکھا ہو */
+  createNeedsSearch?: boolean
+  /** فہرست سے کچھ منتخب نہ ہو تو بٹن پر یہ دستی لکھا نام دکھے */
+  freeText?: string | null
   loading?: boolean
   invalid?: boolean
   className?: string
@@ -72,7 +78,7 @@ export function SearchableSelect({
           aria-invalid={invalid || undefined}
           className={cn(
             "h-11 w-full justify-between gap-2 px-3 font-normal dark:bg-input/30",
-            !selected && "text-muted-foreground",
+            !selected && !freeText && "text-muted-foreground",
             className,
           )}
         >
@@ -81,6 +87,11 @@ export function SearchableSelect({
               <>
                 <span className="truncate text-foreground">{selected.label}</span>
                 {selected.hint && <span className="truncate text-xs text-muted-foreground">{selected.hint}</span>}
+              </>
+            ) : freeText ? (
+              <>
+                <span className="truncate text-foreground">{freeText}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">(دستی)</span>
               </>
             ) : loading ? (
               "لوڈ ہو رہا ہے…"
@@ -118,7 +129,7 @@ export function SearchableSelect({
               ))}
             </CommandGroup>
           </CommandList>
-          {onCreate && (
+          {onCreate && (!createNeedsSearch || search.trim()) && (
             <div className="border-t p-1">
               <Button
                 type="button"

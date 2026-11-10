@@ -59,7 +59,7 @@ export function ParchiSlip({ parchi, copy }: { parchi: ParchiWithRelations; copy
       {parchi.gaari && <Row label="گاڑی نمبر" value={<Num>{parchi.gaari.gaari_number}</Num>} />}
       {parchi.gaari?.driver_ka_naam && <Row label="ڈرائیور" value={parchi.gaari.driver_ka_naam} />}
       {parchi.mill && <Row label="مل" value={parchi.mill.mill_ka_naam} />}
-      {parchi.serial_number && <Row label="سیریل" value={<Num>{parchi.serial_number}</Num>} />}
+      {parchi.serial_number && <Row label="کمپیوٹر پرچی سیریل نمبر" value={<Num>{parchi.serial_number}</Num>} />}
 
       <Divider />
 

@@ -19,6 +19,7 @@ import { BUSINESS } from "@/lib/config"
 import type { KhataIndraj } from "@/lib/database.types"
 import { urduError } from "@/lib/errors"
 import { formatMukhtasarTareekh, formatTareekh, partyKaNaam } from "@/lib/format"
+import { usePrintPage, A4_REPORT_PAGE } from "@/lib/print-page"
 import { refreshAll } from "@/lib/queries"
 import { fetchAll, getSupabase, unwrap } from "@/lib/supabaseClient"
 import { cn } from "@/lib/utils"
@@ -30,6 +31,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export function KhataDetailView({ params }: { params: Promise<{ partyId: string }> }) {
   const { partyId } = use(params)
   const today = useToday()
+  usePrintPage(A4_REPORT_PAGE)
   const validId = UUID_RE.test(partyId)
   const [dialog, setDialog] = useState<{ entry: KhataIndraj | null } | null>(null)
 
@@ -101,7 +103,15 @@ export function KhataDetailView({ params }: { params: Promise<{ partyId: string 
         <div className="flex items-start justify-between">
           <div>
             <div className="text-2xl font-bold">{BUSINESS.naam}</div>
-            <div className="text-sm">{BUSINESS.pata}</div>
+            {/* پتا اور فون ایک ہی سطر میں، درمیان میں تھوڑی جگہ */}
+            <div className="flex flex-wrap items-baseline gap-x-6 text-sm">
+              <span>{BUSINESS.pata}</span>
+              {BUSINESS.phone && (
+                <span className="whitespace-nowrap">
+                  فون: <Num>{BUSINESS.phone}</Num>
+                </span>
+              )}
+            </div>
           </div>
           <div className="text-end text-sm">
             <div className="text-lg font-bold">کھاتہ</div>
@@ -109,14 +119,19 @@ export function KhataDetailView({ params }: { params: Promise<{ partyId: string 
           </div>
         </div>
         <div className="mt-2 text-lg">
-          <span className="font-bold">{partyKaNaam(p)}</span>
-          {p?.gaon && <span> — {p.gaon}</span>}
-          {p?.mobile_number && (
+          {p && (
             <span>
-              {" "}
-              — <Num>{p.mobile_number}</Num>
+              کھاتہ نمبر <Num className="font-bold">{p.khata_number}</Num> —{" "}
             </span>
           )}
+          <span className="font-bold">{partyKaNaam(p)}</span>
+          {p?.gaon && <span> — {p.gaon}</span>}
+          {[p?.mobile_number, p?.mobile_number_2].filter(Boolean).map((m, i) => (
+            <span key={i}>
+              {" "}
+              — <Num>{m}</Num>
+            </span>
+          ))}
         </div>
       </div>
 
@@ -136,7 +151,10 @@ export function KhataDetailView({ params }: { params: Promise<{ partyId: string 
               {p ? (
                 <>
                   <h1 className="text-xl font-bold text-balance sm:text-2xl">{partyKaNaam(p)}</h1>
-                  <div className="flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                    <Badge>
+                      کھاتہ نمبر <Num>{p.khata_number}</Num>
+                    </Badge>
                     {p.qism && <Badge variant="secondary">{p.qism}</Badge>}
                     {p.gaon && (
                       <span className="flex items-center gap-1">
@@ -144,12 +162,12 @@ export function KhataDetailView({ params }: { params: Promise<{ partyId: string 
                         {p.gaon}
                       </span>
                     )}
-                    {p.mobile_number && (
-                      <a href={`tel:${p.mobile_number}`} className="flex items-center gap-1 text-primary">
+                    {[p.mobile_number, p.mobile_number_2].filter(Boolean).map((m, i) => (
+                      <a key={i} href={`tel:${m}`} className="flex items-center gap-1 text-primary">
                         <Phone className="size-3.5" />
-                        <Num>{p.mobile_number}</Num>
+                        <Num>{m}</Num>
                       </a>
-                    )}
+                    ))}
                   </div>
                 </>
               ) : (

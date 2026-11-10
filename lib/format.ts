@@ -1,4 +1,4 @@
-import type { Jinss, KatautiUnit, WazanParchi } from "@/lib/database.types"
+import type { Jinss, KatautiUnit, Nisbat, WazanParchi } from "@/lib/database.types"
 
 const TIME_ZONE = "Asia/Karachi"
 
@@ -145,8 +145,27 @@ export function cleanSerial(value: string) {
     .replace(/[^A-Za-z0-9]/g, "")
 }
 
-/** پارٹی کا پورا نام: "محمد اکرم ولد غلام رسول" */
-export function partyKaNaam(party: { naam: string; walid_ka_naam?: string | null } | null | undefined) {
+/** پارٹی فارم کی فہرست: walid_ka_naam والد کا نام ہے یا ریفرینس کا — پہلا (والد) ڈیفالٹ */
+export const NISBAT_LABEL: Record<Nisbat, string> = {
+  walid: "والد",
+  reference: "ریفرینس",
+}
+
+export const NISBAT_LIST = Object.keys(NISBAT_LABEL) as Nisbat[]
+
+type PartyNaam = { naam: string; walid_ka_naam?: string | null; nisbat?: Nisbat | null }
+
+/** نام کے نیچے / ساتھ والی سطر: "ولد غلام رسول" یا "ریفرینس: محمد اسلم" — خالی ہو تو null */
+export function nisbatKaJumla(party: Omit<PartyNaam, "naam"> | null | undefined) {
+  const walid = party?.walid_ka_naam?.trim()
+  if (!walid) return null
+  return party?.nisbat === "reference" ? `ریفرینس: ${walid}` : `ولد ${walid}`
+}
+
+/** پارٹی کا پورا نام: "محمد اکرم ولد غلام رسول" یا "حاجی ٹریڈرز (ریفرینس: محمد اسلم)" */
+export function partyKaNaam(party: PartyNaam | null | undefined) {
   if (!party) return "—"
-  return party.walid_ka_naam ? `${party.naam} ولد ${party.walid_ka_naam}` : party.naam
+  const walid = party.walid_ka_naam?.trim()
+  if (!walid) return party.naam
+  return party.nisbat === "reference" ? `${party.naam} (ریفرینس: ${walid})` : `${party.naam} ولد ${walid}`
 }

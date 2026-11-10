@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { urduError } from "@/lib/errors"
 import { useTableRows } from "@/lib/queries"
 import { getSupabase } from "@/lib/supabaseClient"
+import { cn } from "@/lib/utils"
 
 /** ریکارڈ ٹیبلز (پارٹیاں، گاڑیاں، ملیں، ملازمین) کا مشترکہ صفحہ */
 export function CrudPage<T extends { id: string }>({ config }: { config: EntityConfig<T> }) {
@@ -145,7 +146,7 @@ export function CrudPage<T extends { id: string }>({ config }: { config: EntityC
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/60 hover:bg-muted/60">
-                  <TableHead className="w-12 text-center">#</TableHead>
+                  <TableHead className={cn("text-center", config.rowNumber ? "w-24" : "w-12")}>{config.rowNumber?.label ?? "#"}</TableHead>
                   {config.columns.map((c) => (
                     <TableHead key={c.label} className={c.className}>
                       {c.label}
@@ -158,7 +159,7 @@ export function CrudPage<T extends { id: string }>({ config }: { config: EntityC
                 {rows.map((row, i) => (
                   <TableRow key={row.id}>
                     <TableCell className="text-center text-muted-foreground">
-                      <Num value={i + 1} />
+                      {config.rowNumber ? config.rowNumber.cell(row) : <Num value={i + 1} />}
                     </TableCell>
                     {config.columns.map((c) => (
                       <TableCell key={c.label} className={c.className}>

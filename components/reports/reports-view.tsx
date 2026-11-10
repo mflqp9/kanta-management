@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { ChartColumnBig, Factory, Printer, Scissors, Wallet } from "lucide-react"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import useSWR from "swr"
 import { DateRangeFilter, type DateRange } from "@/components/date-range-filter"
 import { EmptyState, ErrorState } from "@/components/empty-state"
@@ -18,6 +18,8 @@ import { BUSINESS } from "@/lib/config"
 import type { Jinss, Mill, Party, WazanParchi } from "@/lib/database.types"
 import { urduError } from "@/lib/errors"
 import { JINSS_LABEL, formatMukhtasarTareekh, formatTareekh, monthStart, partyKaNaam } from "@/lib/format"
+import { usePrintPage, A4_REPORT_PAGE } from "@/lib/print-page"
+import { useParties } from "@/lib/queries"
 import { fetchAll, getSupabase, unwrap } from "@/lib/supabaseClient"
 import { cn } from "@/lib/utils"
 
@@ -31,6 +33,7 @@ const TABS: { key: Tab; label: string; icon: typeof Factory }[] = [
 
 export function ReportsView() {
   const today = useToday()
+  usePrintPage(A4_REPORT_PAGE)
   const [picked, setPicked] = useState<DateRange | null>(null)
   const range = picked ?? { from: today ? monthStart(today) : "", to: today }
   const [tab, setTab] = useState<Tab>("mill")
@@ -57,6 +60,11 @@ export function ReportsView() {
           <div>
             <div className="text-2xl font-bold">{BUSINESS.naam}</div>
             <div className="text-sm">{BUSINESS.pata}</div>
+            {BUSINESS.phone && (
+              <div className="text-sm">
+                فون: <Num>{BUSINESS.phone}</Num>
+              </div>
+            )}
           </div>
           <div className="text-end">
             <div className="text-lg font-bold">{activeTab.label}</div>
@@ -162,7 +170,7 @@ type KatautiRow = Pick<
   | "kul_raqam"
   | "final_raqam"
 > & {
-  kisan: Pick<Party, "naam" | "walid_ka_naam"> | null
+  kisan: Pick<Party, "naam" | "walid_ka_naam" | "nisbat"> | null
   mill: Pick<Mill, "mill_ka_naam"> | null
 }
 
@@ -172,7 +180,7 @@ function KatautiReport({ range, jinss }: { range: DateRange; jinss: Jinss | "all
       let q = getSupabase()
         .from("wazan_parchi")
         .select(
-          "id, token_number, tareekh, jinss, wazan_mann, mill_katauti_mann, mill_katauti_kg, fee_mann_rate, kul_raqam, final_raqam, kisan:parties(naam, walid_ka_naam), mill:mills(mill_ka_naam)",
+          "id, token_number, tareekh, jinss, wazan_mann, mill_katauti_mann, mill_katauti_kg, fee_mann_rate, kul_raqam, final_raqam, kisan:parties(naam, walid_ka_naam, nisbat), mill:mills(mill_ka_naam)",
         )
         .gte("tareekh", from)
         .lte("tareekh", to)
@@ -250,8 +258,11 @@ function BaqayaReport({ range }: { range: DateRange }) {
   const { data, error, mutate } = useSWR(["report-baqaya", range.from, range.to], ([, from, to]) =>
     unwrap(getSupabase().rpc("report_baqaya", { p_from: from, p_to: to })),
   )
-  if (error) return <ErrorState message={urduError(error)} onRetry={() => mutate()} />
-  if (!data) return <LoadingTable />
+  // RPC میں والد / ریفرینس نہیں آتا — پارٹیوں کی (پہلے سے کیش) فہرست سے لیں تاکہ «ولد» یا «ریفرینس» درست دکھے
+  const parties = useParties()
+  const nisbatOf = useMemo(() => new Map(parties.data?.map((p) => [p.id, p.nisbat])), [parties.data])
+  if (error ?? parties.error) return <ErrorState message={urduError(error ?? parties.error)} onRetry={() => (mutate(), parties.mutate())} />
+  if (!data || !parties.data) return <LoadingTable />
   if (data.length === 0) return <NoData />
 
   const t = sum(data, ["sabiqa_baqaya", "jama", "banam", "baqaya"])
@@ -274,7 +285,7 @@ function BaqayaReport({ range }: { range: DateRange }) {
             <TableRow key={r.party_id}>
               <TableCell>
                 <Link href={`/khata/${r.party_id}`} className="font-semibold hover:text-primary">
-                  {partyKaNaam(r)}
+                  {partyKaNaam({ ...r, nisbat: nisbatOf.get(r.party_id) })}
                 </Link>
               </TableCell>
               <TableCell className="hidden sm:table-cell print:table-cell">{r.gaon || "—"}</TableCell>

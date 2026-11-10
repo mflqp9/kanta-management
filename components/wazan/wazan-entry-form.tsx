@@ -52,6 +52,7 @@ import {
   formatKg,
   formatMann,
   formatTareekh,
+  nisbatKaJumla,
   partyKaNaam,
 } from "@/lib/format"
 import { refreshAll, useGaariyan, useMills, useParties } from "@/lib/queries"
@@ -178,8 +179,8 @@ export function WazanEntryForm() {
       (parties.data ?? []).map((p) => ({
         value: p.id,
         label: p.naam,
-        hint: [p.walid_ka_naam && `ولد ${p.walid_ka_naam}`, p.gaon].filter(Boolean).join(" · "),
-        keywords: [p.mobile_number ?? "", p.qism ?? ""],
+        hint: [`کھاتہ نمبر ${p.khata_number}`, nisbatKaJumla(p), p.gaon].filter(Boolean).join(" · "),
+        keywords: [String(p.khata_number), `#${p.khata_number}`, p.mobile_number ?? "", p.mobile_number_2 ?? "", p.qism ?? ""],
       })),
     [parties.data],
   )
@@ -375,7 +376,7 @@ export function WazanEntryForm() {
                     value={draft.kisanId}
                     onChange={(v) => set("kisanId", v)}
                     placeholder="کسان تلاش کریں…"
-                    searchPlaceholder="نام، ولدیت، موضع یا موبائل…"
+                    searchPlaceholder="کھاتہ نمبر، نام، والد یا ریفرینس، موضع…"
                     emptyText="یہ کسان درج نہیں"
                     createLabel="نیا کسان شامل کریں"
                     onCreate={(search) => setQuickAdd({ kind: "kisan", search })}
@@ -493,7 +494,7 @@ export function WazanEntryForm() {
                   invalid={Boolean(shownErrors.katauti)}
                 />
               </Field>
-              <Field label="سیریل" htmlFor="serial" hint="صرف انگریزی حروف اور ہندسے">
+              <Field label="کمپیوٹر پرچی سیریل نمبر" htmlFor="serial" hint="صرف انگریزی حروف اور ہندسے">
                 <Input
                   id="serial"
                   dir="ltr"

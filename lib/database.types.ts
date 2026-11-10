@@ -8,6 +8,9 @@ export type Jinss = "ganna" | "kapaas" | "gandum" | "chawal" | "sarson" | "til" 
 /** مل کٹوتی کس اکائی میں لکھی گئی */
 export type KatautiUnit = "kg" | "mann"
 
+/** پارٹی کا walid_ka_naam والد کا نام ہے یا ریفرینس (حوالہ دینے والے) کا */
+export type Nisbat = "walid" | "reference"
+
 export type Database = {
   public: {
     Tables: {
@@ -15,8 +18,14 @@ export type Database = {
         Row: {
           id: string
           naam: string
+          /** کھاتہ نمبر — ڈیٹا بیس خود ترتیب وار دیتا ہے */
+          khata_number: number
           walid_ka_naam: string | null
+          /** walid_ka_naam والد کا نام ہے یا ریفرینس کا */
+          nisbat: Nisbat
           mobile_number: string | null
+          /** دوسرا موبائل نمبر (اختیاری) */
+          mobile_number_2: string | null
           gaon: string | null
           qism: string | null
           /** ضمانتی کاغذات کی تفصیل (چیک، اسٹامپ پیپر وغیرہ) */
@@ -25,9 +34,12 @@ export type Database = {
         }
         Insert: {
           id?: string
+          khata_number?: number
           naam: string
           walid_ka_naam?: string | null
+          nisbat?: Nisbat
           mobile_number?: string | null
+          mobile_number_2?: string | null
           gaon?: string | null
           qism?: string | null
           zamanat?: string | null
@@ -147,6 +159,10 @@ export type Database = {
           naam: string
           ohda: string | null
           mahana_tankhwah: number
+          /** ملازمت شروع کرنے کی تاریخ "YYYY-MM-DD" */
+          joining_tareekh: string | null
+          /** ملازمت چھوڑنے کی تاریخ — null = ابھی کام کر رہا ہے */
+          leaving_tareekh: string | null
           created_at: string
         }
         Insert: {
@@ -154,6 +170,8 @@ export type Database = {
           naam: string
           ohda?: string | null
           mahana_tankhwah?: number
+          joining_tareekh?: string | null
+          leaving_tareekh?: string | null
           created_at?: string
         }
         Update: Partial<Database["public"]["Tables"]["mulazmeen"]["Insert"]>
@@ -200,6 +218,82 @@ export type Database = {
           },
         ]
       }
+      mill_tarseel: {
+        Row: {
+          id: string
+          /** ترسیل نمبر — ڈیٹا بیس خود ترتیب وار دیتا ہے */
+          tarseel_number: number
+          tareekh: string
+          party_id: string | null
+          khata_daar_naam: string
+          mill_id: string | null
+          mill_naam: string
+          token_number: string | null
+          gaari_number: string | null
+          driver_naam: string | null
+          driver_mobile: string | null
+          builty_adda: string | null
+          permit_number: string | null
+          variety: string | null
+          kul_wazan_kg: number
+          katauti_kg: number
+          /** خودکار: kul_wazan_kg - katauti_kg */
+          saafi_wazan_kg: number
+          rate: number
+          gaari_kiraya: number
+          mill_kiraya: number
+          baqaya_saafi_raqam: number
+          bank_naam: string | null
+          online_raqam: number
+          /** خودکار: baqaya_saafi_raqam - online_raqam */
+          baqaya_jaat: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tarseel_number?: number
+          tareekh?: string
+          party_id?: string | null
+          khata_daar_naam: string
+          mill_id?: string | null
+          mill_naam: string
+          token_number?: string | null
+          gaari_number?: string | null
+          driver_naam?: string | null
+          driver_mobile?: string | null
+          builty_adda?: string | null
+          permit_number?: string | null
+          variety?: string | null
+          kul_wazan_kg: number
+          katauti_kg?: number
+          saafi_wazan_kg?: never
+          rate?: number
+          gaari_kiraya?: number
+          mill_kiraya?: number
+          baqaya_saafi_raqam?: number
+          bank_naam?: string | null
+          online_raqam?: number
+          baqaya_jaat?: never
+          created_at?: string
+        }
+        Update: Partial<Database["public"]["Tables"]["mill_tarseel"]["Insert"]>
+        Relationships: [
+          {
+            foreignKeyName: "mill_tarseel_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mill_tarseel_mill_id_fkey"
+            columns: ["mill_id"]
+            isOneToOne: false
+            referencedRelation: "mills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       party_baqaya: {
@@ -215,6 +309,9 @@ export type Database = {
           baqaya: number
           indraj_count: number
           aakhri_tareekh: string | null
+          nisbat: Nisbat
+          khata_number: number
+          mobile_number_2: string | null
         }
         Relationships: []
       }
@@ -295,13 +392,23 @@ export type WazanParchi = Tables<"wazan_parchi">
 export type Mulazim = Tables<"mulazmeen">
 export type KhataIndraj = Tables<"khata_ledger">
 export type PartyBaqaya = Views<"party_baqaya">
+export type MillTarseel = Tables<"mill_tarseel">
+
+/** مل ترسیل کے ساتھ منتخب پارٹی اور مل کی تازہ تفصیل (نام بدلے تو یہاں بھی نیا) */
+export type MillTarseelWithRelations = MillTarseel & {
+  party: Pick<Party, "naam" | "walid_ka_naam" | "nisbat" | "khata_number"> | null
+  mill: Pick<Mill, "mill_ka_naam"> | null
+}
+
+export const MILL_TARSEEL_SELECT =
+  "*, party:parties(naam, walid_ka_naam, nisbat, khata_number), mill:mills(mill_ka_naam)" as const
 
 /** پرچی کے ساتھ کسان، گاڑی اور مل کی تفصیل (پرنٹ اور فہرستوں کے لیے) */
 export type ParchiWithRelations = WazanParchi & {
-  kisan: Pick<Party, "naam" | "walid_ka_naam" | "gaon" | "mobile_number"> | null
+  kisan: Pick<Party, "naam" | "walid_ka_naam" | "nisbat" | "gaon" | "mobile_number"> | null
   gaari: Pick<Gaari, "gaari_number" | "driver_ka_naam"> | null
   mill: Pick<Mill, "mill_ka_naam"> | null
 }
 
 export const PARCHI_SELECT =
-  "*, kisan:parties(naam, walid_ka_naam, gaon, mobile_number), gaari:gaariyan(gaari_number, driver_ka_naam), mill:mills(mill_ka_naam)" as const
+  "*, kisan:parties(naam, walid_ka_naam, nisbat, gaon, mobile_number), gaari:gaariyan(gaari_number, driver_ka_naam), mill:mills(mill_ka_naam)" as const

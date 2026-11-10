@@ -7,7 +7,9 @@ export type CrudTable = keyof typeof TABLE_ORDER
 export type FieldDef = {
   name: string
   label: string
-  type?: "text" | "number" | "tel" | "select" | "textarea"
+  type?: "text" | "number" | "tel" | "select" | "textarea" | "date"
+  /** date: یہ تاریخ کسی دوسرے خانے کی تاریخ سے پہلے نہ ہو (مثلاً چھوڑنے کی تاریخ ≥ شمولیت) */
+  notBefore?: { field: string; message: string }
   /** select کے اختیارات */
   options?: string[]
   /** ٹیکسٹ خانے کے لیے تجاویز (datalist) */
@@ -22,6 +24,18 @@ export type FieldDef = {
   full?: boolean
   unit?: string
   hint?: string
+  /**
+   * خانے کے شروع میں چھوٹی فہرست جس کی قیمت الگ کالم میں محفوظ ہوتی ہے
+   * (مثلاً والد / ریفرینس)۔ منتخب قیمت کے حساب سے لیبل اور مثال بدل سکتے ہیں۔
+   */
+  selector?: {
+    name: string
+    ariaLabel: string
+    options: { value: string; label: string }[]
+    defaultValue: string
+    labels?: Record<string, string>
+    placeholders?: Record<string, string>
+  }
 }
 
 export type ColumnDef<T> = {
@@ -40,6 +54,8 @@ export type EntityConfig<T extends { id: string }> = {
   muannas?: boolean
   fields: FieldDef[]
   columns: ColumnDef<T>[]
+  /** جدول کا پہلا («#») کالم: نہ ہو تو 1، 2، 3 گنتی؛ ہو تو ریکارڈ کا اپنا نمبر (مثلاً کھاتہ نمبر) */
+  rowNumber?: { label: string; cell: (row: T) => ReactNode }
   searchText: (row: T) => string
   /** موبائل کارڈ */
   cardTitle: (row: T) => ReactNode

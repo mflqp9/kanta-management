@@ -224,6 +224,7 @@
 @page {
   margin: 12mm;
 }
+/* کھاتہ / رپورٹس / مل ترسیل کا سائز اور صفحہ نمبر: lib/print-page.ts (جو صفحہ کھلا ہو وہی لگاتا ہے) */
 
 @media screen {
   #slip-print-root {

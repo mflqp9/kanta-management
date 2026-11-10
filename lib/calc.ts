@@ -52,6 +52,30 @@ export function khudkarKatauti(khalisWazanKg: number, feesad: number, unit: Kata
   return unit === "kg" ? round(kg, 2) : round(kg / KG_PER_MANN, 3)
 }
 
+/**
+ * مل ترسیل رجسٹر کا حساب — supabase/schema.sql کے mill_tarseel کے خودکار کالموں جیسا:
+ *   صافی وزن = کل وزن − کٹوتی؛ بقایا جات = بقایا صافی رقم − آن لائن رقم
+ * (بقایا صافی رقم منشی خود لکھتا ہے)
+ */
+export function tarseelHisaab({
+  kulWazanKg,
+  katautiKg,
+  baqayaSaafiRaqam,
+  onlineRaqam,
+}: {
+  kulWazanKg: number
+  katautiKg: number
+  baqayaSaafiRaqam: number
+  onlineRaqam: number
+}) {
+  const saafiWazanKg = round(kulWazanKg - katautiKg, 3)
+  return {
+    saafiWazanKg,
+    saafiMann: round(saafiWazanKg / KG_PER_MANN, 3),
+    baqayaJaat: round(baqayaSaafiRaqam - onlineRaqam, 2),
+  }
+}
+
 /** کلو کو "من + کلو" میں توڑتا ہے: 8,120 کلو → 203 من 0 کلو */
 export function mannAurKilo(kg: number) {
   const mann = Math.floor(kg / KG_PER_MANN)

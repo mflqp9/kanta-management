@@ -12,7 +12,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Skeleton } from "@/components/ui/skeleton"
 import type { PartyBaqaya } from "@/lib/database.types"
 import { urduError } from "@/lib/errors"
-import { formatMukhtasarTareekh } from "@/lib/format"
+import { formatMukhtasarTareekh, nisbatKaJumla } from "@/lib/format"
 import { fetchAll, getSupabase } from "@/lib/supabaseClient"
 import { cn } from "@/lib/utils"
 
@@ -39,10 +39,18 @@ export function KhataIndexView() {
   )
 
   const rows = useMemo(() => {
+    // صرف نمبر لکھا ہو (مثلاً 12 یا #12) تو وہی کھاتہ نمبر سب سے اوپر، اور «کھاتے والے» فلٹر کے باوجود نظر آئے
+    const number = /^#?\d+$/.test(q) ? q.replace("#", "") : null
+    const isNumber = (r: PartyBaqaya) => number !== null && String(r.khata_number) === number
     return (data ?? [])
-      .filter((r) => (filter === "baqaya" ? Number(r.baqaya) !== 0 || Number(r.indraj_count) > 0 : true))
-      .filter((r) => !q || [r.naam, r.walid_ka_naam, r.gaon, r.mobile_number].join(" ").toLowerCase().includes(q))
-      .sort((a, b) => Math.abs(Number(b.baqaya)) - Math.abs(Number(a.baqaya)))
+      .filter((r) => isNumber(r) || (filter === "baqaya" ? Number(r.baqaya) !== 0 || Number(r.indraj_count) > 0 : true))
+      .filter(
+        (r) =>
+          !q ||
+          isNumber(r) ||
+          [`#${r.khata_number}`, r.naam, nisbatKaJumla(r), r.gaon, r.mobile_number, r.mobile_number_2].join(" ").toLowerCase().includes(q),
+      )
+      .sort((a, b) => Number(isNumber(b)) - Number(isNumber(a)) || Math.abs(Number(b.baqaya)) - Math.abs(Number(a.baqaya)))
   }, [data, filter, q])
 
   return (
@@ -58,7 +66,7 @@ export function KhataIndexView() {
 
       <div className="mb-4 flex flex-col gap-2 sm:flex-row">
         <InputGroup className="h-11 bg-card">
-          <InputGroupInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="پارٹی کا نام، موضع یا موبائل تلاش کریں…" />
+          <InputGroupInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="کھاتہ نمبر، پارٹی کا نام، موضع یا موبائل تلاش کریں…" />
           <InputGroupAddon>
             <Search />
           </InputGroupAddon>
@@ -114,13 +122,17 @@ export function KhataIndexView() {
             {rows.map((r) => (
               <li key={r.id}>
                 <Link href={`/khata/${r.id}`} className="flex items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/50 sm:px-5">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-base font-bold text-primary">
-                    {r.naam.slice(0, 1)}
+                  <span
+                    className="flex h-10 min-w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 px-1.5 text-primary"
+                    title={`کھاتہ نمبر ${r.khata_number}`}
+                  >
+                    <span className="sr-only">کھاتہ نمبر </span>
+                    <Num className="text-base font-bold">{r.khata_number}</Num>
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-semibold">
                       {r.naam}
-                      {r.walid_ka_naam && <span className="text-sm font-normal text-muted-foreground"> ولد {r.walid_ka_naam}</span>}
+                      {nisbatKaJumla(r) && <span className="text-sm font-normal text-muted-foreground"> {nisbatKaJumla(r)}</span>}
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
                       {r.gaon && (

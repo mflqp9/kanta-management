@@ -8,33 +8,39 @@ import type { CrudTable, FieldDef } from "@/components/crud/types"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toNumber } from "@/lib/calc"
 import { urduError } from "@/lib/errors"
+import { formatTareekh } from "@/lib/format"
 import { getSupabase } from "@/lib/supabaseClient"
 import { cn } from "@/lib/utils"
 
 type Values = Record<string, string>
 
 function initialValues(fields: FieldDef[], record?: Record<string, unknown> | null, prefill?: Values): Values {
-  return Object.fromEntries(
-    fields.map((f) => {
-      const v = record?.[f.name]
-      return [f.name, v === null || v === undefined ? (prefill?.[f.name] ?? f.defaultValue ?? "") : String(v)]
-    }),
-  )
+  const entries: [string, string][] = []
+  for (const f of fields) {
+    const v = record?.[f.name]
+    entries.push([f.name, v === null || v === undefined ? (prefill?.[f.name] ?? f.defaultValue ?? "") : String(v)])
+    if (f.selector) {
+      const s = record?.[f.selector.name]
+      entries.push([f.selector.name, s === null || s === undefined || s === "" ? f.selector.defaultValue : String(s)])
+    }
+  }
+  return Object.fromEntries(entries)
 }
 
 function toPayload(fields: FieldDef[], values: Values) {
-  return Object.fromEntries(
-    fields.map((f) => {
-      const raw = values[f.name]?.trim() ?? ""
-      if (f.type === "number") return [f.name, toNumber(raw)]
-      return [f.name, raw === "" ? null : raw]
-    }),
-  )
+  const entries: [string, unknown][] = []
+  for (const f of fields) {
+    const raw = values[f.name]?.trim() ?? ""
+    entries.push([f.name, f.type === "number" ? toNumber(raw) : raw === "" ? null : raw])
+    if (f.selector) entries.push([f.selector.name, values[f.selector.name] || f.selector.defaultValue])
+  }
+  return Object.fromEntries(entries)
 }
 
 /**
@@ -132,6 +138,8 @@ function RecordForm<T extends { id: string }>({
       else if (f.type === "number" && raw && (!Number.isFinite(Number(raw.replace(/,/g, ""))) || toNumber(raw) < 0))
         next[f.name] = "درست نمبر لکھیں"
       else if (f.type === "tel" && raw && !/^[0-9+\-\s]{7,15}$/.test(raw)) next[f.name] = "درست موبائل نمبر لکھیں"
+      else if (f.type === "date" && raw && !/^\d{4}-\d{2}-\d{2}$/.test(raw)) next[f.name] = "درست تاریخ لکھیں"
+      else if (f.notBefore && raw && values[f.notBefore.field] && raw < values[f.notBefore.field]) next[f.name] = f.notBefore.message
     }
     setErrors(next)
     return Object.keys(next).length === 0
@@ -168,10 +176,13 @@ function RecordForm<T extends { id: string }>({
         {fields.map((f) => {
           const id = `${formId}-${f.name}`
           const error = errors[f.name]
+          const selected = f.selector ? values[f.selector.name] : undefined
+          const label = (selected && f.selector?.labels?.[selected]) || f.label
+          const placeholder = (selected && f.selector?.placeholders?.[selected]) || f.placeholder
           return (
             <div key={f.name} className={cn("grid gap-1.5", (f.full || f.type === "textarea") && "sm:col-span-2")}>
               <Label htmlFor={id}>
-                {f.label}
+                {label}
                 {f.required && <span className="text-destructive">*</span>}
                 {f.unit && <span className="text-xs font-normal text-muted-foreground">({f.unit})</span>}
               </Label>
@@ -188,6 +199,45 @@ function RecordForm<T extends { id: string }>({
                     ))}
                   </SelectContent>
                 </Select>
+              ) : f.selector ? (
+                <InputGroup className="h-11">
+                  <InputGroupAddon align="inline-start" className="py-0 ps-0.5">
+                    <Select value={selected} onValueChange={(v) => set(f.selector!.name, v)}>
+                      <SelectTrigger
+                        aria-label={f.selector.ariaLabel}
+                        className="h-10! cursor-pointer gap-1 border-0 bg-secondary ps-2.5 pe-1.5 text-sm font-medium text-secondary-foreground shadow-none hover:bg-accent dark:bg-secondary dark:hover:bg-accent"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {f.selector.options.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id={id}
+                    value={values[f.name]}
+                    placeholder={placeholder}
+                    autoComplete="off"
+                    onChange={(e) => set(f.name, e.target.value)}
+                    aria-invalid={Boolean(error) || undefined}
+                  />
+                </InputGroup>
+              ) : f.type === "date" ? (
+                <Input
+                  id={id}
+                  type="date"
+                  dir="ltr"
+                  className="h-11 text-end"
+                  value={values[f.name]}
+                  min={f.notBefore ? values[f.notBefore.field] || undefined : undefined}
+                  onChange={(e) => set(f.name, e.target.value)}
+                  aria-invalid={Boolean(error) || undefined}
+                />
               ) : f.type === "textarea" ? (
                 <Textarea
                   id={id}
@@ -222,6 +272,8 @@ function RecordForm<T extends { id: string }>({
               )}
               {error ? (
                 <p className="text-xs text-destructive">{error}</p>
+              ) : f.type === "date" && values[f.name] ? (
+                <p className="text-xs text-muted-foreground">{formatTareekh(values[f.name])}</p>
               ) : (
                 f.hint && <p className="text-xs text-muted-foreground">{f.hint}</p>
               )}

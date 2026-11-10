@@ -10,7 +10,8 @@ type PrintContextValue = {
 
 const PrintContext = createContext<PrintContextValue | null>(null)
 
-const SLIP_PAGE_CSS = "@page { size: 80mm auto; margin: 0; }"
+// صفحہ نمبر (lib/print-page.ts) پرچی پر نہ آئے
+const SLIP_PAGE_CSS = "@page { size: 80mm auto; margin: 0; @bottom-center { content: none } }"
 
 export function PrintProvider({ children }: { children: ReactNode }) {
   const [job, setJob] = useState<{ id: number; slip: ReactNode } | null>(null)

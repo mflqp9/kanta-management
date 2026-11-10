@@ -104,7 +104,7 @@ export function ParchiyanView() {
 
       <div className="my-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
         <InputGroup className="h-11 bg-card">
-          <InputGroupInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ٹوکن نمبر، سیریل، کسان، گاڑی یا مل تلاش کریں…" />
+          <InputGroupInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ٹوکن نمبر، کمپیوٹر سیریل، کسان، گاڑی یا مل تلاش کریں…" />
           <InputGroupAddon>
             <Search />
           </InputGroupAddon>
